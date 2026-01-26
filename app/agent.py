@@ -101,9 +101,8 @@ def generate_response(
                 {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
             ]
             
-            # Use gemini-flash-latest model
             model = genai.GenerativeModel(
-                'gemini-flash-latest',
+                'gemini-1.5-flash',
                 safety_settings=safety_settings
             )
             
