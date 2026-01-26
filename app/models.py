@@ -5,6 +5,7 @@ Pydantic models for request/response schemas
 
 from pydantic import BaseModel, Field
 from typing import Optional, List
+from datetime import datetime
 
 
 # ============== REQUEST MODELS (PS Section 6) ==============
@@ -13,9 +14,9 @@ class Message(BaseModel):
     """
     PS Section 6.3 - message object
     """
-    sender: str  # "scammer" or "user"
-    text: str  # Message content
-    timestamp: str  # ISO-8601 format
+    sender: str = "scammer"  # "scammer" or "user"
+    text: str = ""  # Message content
+    timestamp: Optional[str] = Field(default_factory=lambda: datetime.now().isoformat())  # ISO-8601 format
 
 
 class Metadata(BaseModel):
@@ -33,7 +34,7 @@ class AnalyzeRequest(BaseModel):
     """
     sessionId: str
     message: Message
-    conversationHistory: List[Message] = []
+    conversationHistory: Optional[List[Message]] = []
     metadata: Optional[Metadata] = None
 
 
