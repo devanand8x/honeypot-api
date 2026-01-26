@@ -1,0 +1,118 @@
+"""
+Intelligence Extraction Module
+Extract bank accounts, UPI IDs, phone numbers, phishing links
+"""
+
+import re
+from typing import List, Optional
+from app.models import ExtractedIntelligence
+
+
+# Regex patterns for intelligence extraction
+PATTERNS = {
+    # Bank account: 9-18 digits
+    "bank_account": r"\b\d{9,18}\b",
+    
+    # IFSC Code: 4 letters + 0 + 6 alphanumeric
+    "ifsc": r"\b[A-Z]{4}0[A-Z0-9]{6}\b",
+    
+    # UPI ID: word@provider format
+    "upi_id": r"\b[\w\.\-]+@[a-zA-Z]{2,}\b",
+    
+    # Indian phone: +91 or starting with 6-9
+    "phone": r"(?:\+91[\-\s]?)?[6-9]\d{9}\b",
+    
+    # URLs
+    "url": r"https?://[^\s<>\"{}|\\^`\[\]]+",
+    
+    # Email
+    "email": r"\b[\w\.\-]+@[\w\.\-]+\.[a-zA-Z]{2,}\b"
+}
+
+# Keywords that indicate suspicious intent
+SUSPICIOUS_KEYWORDS = [
+    "urgent", "immediately", "blocked", "suspended", "verify",
+    "otp", "pin", "password", "cvv", "transfer", "send money",
+    "prize", "winner", "lottery", "refund", "cashback",
+    "click here", "update now", "confirm", "validate",
+    "bank account", "upi", "payment", "amount",
+    "arrest", "legal action", "police", "fine", "penalty",
+    "customer care", "helpline", "support",
+    "jaldi", "turant", "abhi", "block", "band"
+]
+
+
+def extract_intelligence(text: str, existing: Optional[ExtractedIntelligence] = None) -> ExtractedIntelligence:
+    """
+    Extract all intelligence from a text message
+    
+    Args:
+        text: The message text to analyze
+        existing: Optional existing intelligence to merge with
+    
+    Returns:
+        ExtractedIntelligence object with extracted data
+    """
+    # Input validation
+    if not text or not isinstance(text, str):
+        return existing if existing else ExtractedIntelligence()
+    
+    if existing is None:
+        existing = ExtractedIntelligence()
+    
+    text_upper = text.upper()
+    text_lower = text.lower()
+    
+    # Extract bank accounts (only if looks like account number context)
+    account_context_keywords = ["account", "a/c", "khata", "bank"]
+    if any(kw in text_lower for kw in account_context_keywords):
+        accounts = re.findall(PATTERNS["bank_account"], text)
+        # Filter out unlikely matches (year-like numbers, etc)
+        accounts = [a for a in accounts if len(a) >= 10 and not a.startswith("20")]
+        existing.bankAccounts = list(set(existing.bankAccounts + accounts))
+    
+    # Extract UPI IDs
+    upi_ids = re.findall(PATTERNS["upi_id"], text, re.IGNORECASE)
+    # Filter out emails (UPI IDs don't have domain extensions)
+    upi_ids = [u for u in upi_ids if not any(ext in u.lower() for ext in [".com", ".in", ".org", ".net"])]
+    existing.upiIds = list(set(existing.upiIds + upi_ids))
+    
+    # Extract phone numbers
+    phones = re.findall(PATTERNS["phone"], text)
+    phones = [re.sub(r"[\s\-]", "", p) for p in phones]  # Clean up
+    existing.phoneNumbers = list(set(existing.phoneNumbers + phones))
+    
+    # Extract URLs (potential phishing links)
+    urls = re.findall(PATTERNS["url"], text)
+    # Filter out known safe domains
+    safe_domains = ["google.com", "facebook.com", "twitter.com", "gov.in", "rbi.org.in"]
+    urls = [u for u in urls if not any(safe in u.lower() for safe in safe_domains)]
+    existing.phishingLinks = list(set(existing.phishingLinks + urls))
+    
+    # Extract suspicious keywords found in text
+    found_keywords = [kw for kw in SUSPICIOUS_KEYWORDS if kw in text_lower]
+    existing.suspiciousKeywords = list(set(existing.suspiciousKeywords + found_keywords))
+    
+    return existing
+
+
+def merge_intelligence(intel1: ExtractedIntelligence, intel2: ExtractedIntelligence) -> ExtractedIntelligence:
+    """Merge two intelligence objects"""
+    return ExtractedIntelligence(
+        bankAccounts=list(set(intel1.bankAccounts + intel2.bankAccounts)),
+        upiIds=list(set(intel1.upiIds + intel2.upiIds)),
+        phoneNumbers=list(set(intel1.phoneNumbers + intel2.phoneNumbers)),
+        phishingLinks=list(set(intel1.phishingLinks + intel2.phishingLinks)),
+        suspiciousKeywords=list(set(intel1.suspiciousKeywords + intel2.suspiciousKeywords))
+    )
+
+
+def intelligence_to_dict(intel: ExtractedIntelligence) -> dict:
+    """Convert ExtractedIntelligence to dictionary for callback"""
+    return {
+        "bankAccounts": intel.bankAccounts,
+        "upiIds": intel.upiIds,
+        "phishingLinks": intel.phishingLinks,
+        "phoneNumbers": intel.phoneNumbers,
+        "suspiciousKeywords": intel.suspiciousKeywords
+    }

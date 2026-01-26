@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  honeypot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: honeypot-api
+    ports:
+      - "8000:8000"
+    environment:
+      - API_KEY=${API_KEY:-honeypot_secret_2026}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GUVI_CALLBACK_URL=${GUVI_CALLBACK_URL:-https://hackathon.guvi.in/api/updateHoneyPotFinalResult}
+    volumes:
+      - ./sessions.json:/app/sessions.json
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Optional: Add Redis for production caching
+#  redis:
+#    image: redis:alpine
+#    container_name: honeypot-redis
+#    ports:
+#      - "6379:6379"
+#    restart: unless-stopped
