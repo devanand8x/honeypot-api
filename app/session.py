@@ -6,7 +6,7 @@ Handles multi-turn conversation state
 from typing import Dict, Optional
 from datetime import datetime
 import logging
-from app.models import ExtractedIntelligence
+from app.models import SessionIntelligence
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class Session:
         self.last_activity = datetime.now()
         self.message_count = 0
         self.scam_detected = False
-        self.intelligence = ExtractedIntelligence()
+        self.intelligence = SessionIntelligence()
         self.agent_notes = ""
         self.conversation_history = []
         self.last_agent_response = ""
@@ -57,7 +57,7 @@ class Session:
         session.last_activity = datetime.fromisoformat(data["last_activity"])
         session.message_count = data["message_count"]
         session.scam_detected = data["scam_detected"]
-        session.intelligence = ExtractedIntelligence(**data["intelligence"])
+        session.intelligence = SessionIntelligence.model_validate(data.get("intelligence", {}))
         session.agent_notes = data["agent_notes"]
         session.conversation_history = data["conversation_history"]
         session.last_agent_response = data["last_agent_response"]

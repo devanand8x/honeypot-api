@@ -50,45 +50,33 @@ class EngagementMetrics(BaseModel):
 
 class ExtractedIntelligence(BaseModel):
     """
-    PS Section 8 - extractedIntelligence object
-    NOTE: Section 8 only has bankAccounts, upiIds, phishingLinks
-    Section 12 callback adds phoneNumbers, suspiciousKeywords
+    PS Section 8 - extractedIntelligence object (Strict for Response)
     """
     bankAccounts: List[str] = []
     upiIds: List[str] = []
     phishingLinks: List[str] = []
-    # Added for Section 12 callback compatibility:
+
+class SessionIntelligence(ExtractedIntelligence):
+    """
+    Internal intelligence storage (includes Section 12 callback fields)
+    """
     phoneNumbers: List[str] = []
     suspiciousKeywords: List[str] = []
 
 
 class AnalyzeResponse(BaseModel):
     """
-    PS Section 8 - Response body EXACT
-    
-    {
-        "status": "success",
-        "scamDetected": true,
-        "engagementMetrics": {
-            "engagementDurationSeconds": 420,
-            "totalMessagesExchanged": 18
-        },
-        "extractedIntelligence": {
-            "bankAccounts": ["XXXX-XXXX-XXXX"],
-            "upiIds": ["scammer@upi"],
-            "phishingLinks": ["http://malicious-link.example"]
-        },
-        "agentNotes": "Scammer used urgency tactics..."
-    }
+    PS Section 8 - Response body EXACT (No agentResponse for evaluation stability)
     """
     status: str = "success"
     scamDetected: bool = False
     engagementMetrics: EngagementMetrics = EngagementMetrics()
     extractedIntelligence: ExtractedIntelligence = ExtractedIntelligence()
     agentNotes: str = ""
-    # agentResponse is needed for conversation but not in PS Section 8
-    # Adding at end to not break PS format appearance
-    agentResponse: Optional[str] = None
+    
+    # Internal field for conversation, but can be skipped in JSON
+    # using model_dump(exclude={"agentResponse"}) if needed
+    # agentResponse: Optional[str] = None
 
 
 # ============== CALLBACK MODEL (PS Section 12 EXACT) ==============

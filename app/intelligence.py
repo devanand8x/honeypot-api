@@ -5,7 +5,7 @@ Extract bank accounts, UPI IDs, phone numbers, phishing links
 
 import re
 from typing import List, Optional
-from app.models import ExtractedIntelligence
+from app.models import SessionIntelligence as ExtractedIntelligence
 
 
 # Regex patterns for intelligence extraction
@@ -51,7 +51,7 @@ def extract_intelligence(text: str, existing: Optional[ExtractedIntelligence] = 
         existing: Optional existing intelligence to merge with
     
     Returns:
-        ExtractedIntelligence object with extracted data
+        ExtractedIntelligence (SessionIntelligence) object with extracted data
     """
     # Input validation
     if not text or not isinstance(text, str):
