@@ -24,6 +24,11 @@ def configure_gemini():
     api_key = os.getenv("GOOGLE_API_KEY")
     if api_key:
         genai.configure(api_key=api_key)
+        # Log version to help debug Render environment
+        try:
+            logger.info(f"Using google-generativeai version: {genai.__version__}")
+        except:
+            pass
         return True
     return False
 
@@ -101,13 +106,17 @@ def generate_response(
                 {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
             ]
             
-            # Priority list for models (Gemini Flash varieties + Pro as ultimate fallback)
+            # Priority list for models (Expanded for maximal compatibility)
             models_to_try = [
                 'models/gemini-1.5-flash',
-                'models/gemini-pro-latest',
+                'models/gemini-1.5-flash-latest',
+                'models/gemini-1.0-pro',
                 'models/gemini-pro',
+                'models/gemini-pro-latest',
                 'gemini-1.5-flash',
-                'gemini-pro'
+                'gemini-1.0-pro',
+                'gemini-pro',
+                'gemini-flash-latest'
             ]
             
             conversation_context = build_conversation_context(
