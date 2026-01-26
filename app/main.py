@@ -9,7 +9,8 @@ Endpoints:
 
 import os
 import logging
-from fastapi import FastAPI, HTTPException, Header, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Header, BackgroundTasks, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -40,6 +41,21 @@ app = FastAPI(
     description="AI-powered honeypot for scam detection and intelligence extraction",
     version="1.0.0"
 )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Log validation errors for debugging"""
+    try:
+        body = await request.body()
+        body_str = body.decode()
+    except Exception:
+        body_str = "could not decode body"
+    
+    logger.error(f"Validation error: {exc.errors()}\nBody: {body_str}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": body_str},
+    )
 
 # Security: CORS Restricted Origins (Relaxed for evaluation stability)
 ORIGINS = ["*"]
