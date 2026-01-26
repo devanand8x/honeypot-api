@@ -101,10 +101,14 @@ def generate_response(
                 {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
             ]
             
-            model = genai.GenerativeModel(
+            # Priority list for models (Gemini Flash varieties + Pro as ultimate fallback)
+            models_to_try = [
+                'models/gemini-1.5-flash',
+                'models/gemini-pro-latest',
+                'models/gemini-pro',
                 'gemini-1.5-flash',
-                safety_settings=safety_settings
-            )
+                'gemini-pro'
+            ]
             
             conversation_context = build_conversation_context(
                 conversation_history, 
@@ -118,20 +122,29 @@ CONVERSATION SO FAR:
 
 Generate your response as Ramesh. Keep it short, worried, and ask for clarification. Make spelling mistakes occasionally."""
             
-            response = model.generate_content(
-                full_prompt,
-                generation_config=genai.types.GenerationConfig(
-                    max_output_tokens=150,
-                    temperature=0.8,
-                )
-            )
-            
-            # Extract response from candidates
-            if response.candidates and len(response.candidates) > 0:
-                candidate = response.candidates[0]
-                if candidate.content and candidate.content.parts:
-                    text = candidate.content.parts[0].text
-                    return text.strip()
+            for model_name in models_to_try:
+                try:
+                    model = genai.GenerativeModel(
+                        model_name,
+                        safety_settings=safety_settings
+                    )
+                    
+                    response = model.generate_content(
+                        full_prompt,
+                        generation_config=genai.types.GenerationConfig(
+                            max_output_tokens=150,
+                            temperature=0.8,
+                        )
+                    )
+                    
+                    if response and response.candidates and len(response.candidates) > 0:
+                        candidate = response.candidates[0]
+                        if candidate.content and candidate.content.parts:
+                            text = candidate.content.parts[0].text
+                            return text.strip()
+                except Exception as inner_e:
+                    logger.warning(f"Failed to use model {model_name}: {inner_e}")
+                    continue
                 
         except Exception as e:
             logger.error(f"Gemini API error: {e}")
