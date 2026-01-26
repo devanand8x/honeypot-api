@@ -243,6 +243,7 @@ async def analyze_message(
         response = AnalyzeResponse(
             status="success",
             scamDetected=final_scam,
+            agentResponse=agent_response,
             engagementMetrics=EngagementMetrics(
                 engagementDurationSeconds=duration,
                 totalMessagesExchanged=message_count

@@ -73,10 +73,7 @@ class AnalyzeResponse(BaseModel):
     engagementMetrics: EngagementMetrics = EngagementMetrics()
     extractedIntelligence: ExtractedIntelligence = ExtractedIntelligence()
     agentNotes: str = ""
-    
-    # Internal field for conversation, but can be skipped in JSON
-    # using model_dump(exclude={"agentResponse"}) if needed
-    # agentResponse: Optional[str] = None
+    agentResponse: Optional[str] = None
 
 
 # ============== CALLBACK MODEL (PS Section 12 EXACT) ==============
