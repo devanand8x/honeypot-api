@@ -125,7 +125,7 @@ class SessionManager:
             self._sessions[session_id].scam_detected = detected
             self.save_to_disk()
     
-    def update_intelligence(self, session_id: str, intelligence: ExtractedIntelligence):
+    def update_intelligence(self, session_id: str, intelligence: SessionIntelligence):
         """Update extracted intelligence"""
         if session_id in self._sessions:
             self._sessions[session_id].intelligence = intelligence
