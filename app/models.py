@@ -4,7 +4,7 @@ Pydantic models for request/response schemas
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Union
 from datetime import datetime
 
 
@@ -16,7 +16,7 @@ class Message(BaseModel):
     """
     sender: str = "scammer"  # "scammer" or "user"
     text: str = ""  # Message content
-    timestamp: Optional[str] = Field(default_factory=lambda: datetime.now().isoformat())  # ISO-8601 format
+    timestamp: Optional[Union[str, int, float]] = Field(default_factory=lambda: datetime.now().isoformat())  # ISO-8601 or Unix timestamp
 
 
 class Metadata(BaseModel):
