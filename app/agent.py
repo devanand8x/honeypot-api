@@ -193,68 +193,11 @@ CONVERSATION SO FAR:
 
 Generate your response as Ramesh. Keep it short, worried, and ask for clarification. Make spelling mistakes occasionally."""
 
-    # Try Gemini first
-    client = get_gemini_client()
-    if client:
-        try:
-            logger.info("Attempting response generation with Gemini...")
-            response = client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=full_prompt,
-                config={
-                    "max_output_tokens": 150,
-                    "temperature": 0.8
-                }
-            )
-            if response and response.text:
-                generated_text = response.text.strip()
-                # Check if response is complete (not truncated)
-                # A proper response should be at least 30 characters
-                if len(generated_text) >= 20: # Lowered to allow shorter but relevant responses
-                    # Check for obvious irrelevant phrases when info is provided
-                    if "where is the link" in generated_text.lower() and ("http" in current_message.lower() or "www" in current_message.lower()):
-                        logger.warning("Gemini generated irrelevant 'where is the link' response. Proceeding with Gemini as fallback is disabled.")
-                        return generated_text
-                    elif "which account" in generated_text.lower() and any(char.isdigit() for char in current_message):
-                        logger.warning("Gemini generated irrelevant 'which account' response. Proceeding with Gemini as fallback is disabled.")
-                        return generated_text
-                    else:
-                        logger.info("Gemini response generated successfully.")
-                        return generated_text
-                else:
-                    logger.warning(f"Gemini response too short ({len(generated_text)} chars). Returning anyway as fallback is disabled.")
-                    return generated_text
-        except Exception as e:
-            error_msg = str(e).lower()
-            logger.error(f"Gemini API error: {e}")
-            
-            # If Gemini fails (especially 429 quota), try NVIDIA Fallback
-            if "429" in error_msg or "quota" in error_msg or "limit" in error_msg or "exhausted" in error_msg:
-                logger.info("Attempting fallback to NVIDIA NIM...")
-                nvidia_client = get_nvidia_client()
-                if nvidia_client:
-                    try:
-                        response = nvidia_client.chat.completions.create(
-                            model="meta/llama-3.1-8b-instruct",
-                            messages=[{"role": "system", "content": SYSTEM_PROMPT}, 
-                                     {"role": "user", "content": f"CONVERSATION SO FAR:\n{conversation_context}\n\nGenerate your response as Ramesh. Keep it short, worried, and ask for clarification. Make spelling mistakes occasionally."}],
-                            temperature=0.7,
-                            max_tokens=150,
-                            top_p=1
-                        )
-                        if response.choices[0].message.content:
-                            generated_text = response.choices[0].message.content.strip()
-                            logger.info("NVIDIA response generated successfully.")
-                            return generated_text
-                    except Exception as nv_e:
-                        logger.error(f"NVIDIA API error: {nv_e}")
-            
-            return "Sir please wait, my network is slow. What did you say?"
-
-    # No Gemini available, try NVIDIA
+    # Try NVIDIA first (Primary)
     nvidia_client = get_nvidia_client()
     if nvidia_client:
         try:
+            logger.info("Attempting response generation with NVIDIA (Primary)...")
             response = nvidia_client.chat.completions.create(
                 model="meta/llama-3.1-8b-instruct",
                 messages=[{"role": "system", "content": SYSTEM_PROMPT}, 
@@ -265,9 +208,35 @@ Generate your response as Ramesh. Keep it short, worried, and ask for clarificat
             )
             if response.choices[0].message.content:
                 generated_text = response.choices[0].message.content.strip()
+                logger.info("NVIDIA response generated successfully.")
                 return generated_text
         except Exception as nv_e:
             logger.error(f"NVIDIA API error: {nv_e}")
+            logger.info("NVIDIA failed, attempting fallback to Gemini...")
+
+    # Fallback to Gemini if NVIDIA fails
+    client = get_gemini_client()
+    if client:
+        try:
+            logger.info("Attempting response generation with Gemini (Fallback)...")
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=full_prompt,
+                config={
+                    "max_output_tokens": 150,
+                    "temperature": 0.8
+                }
+            )
+            if response and response.text:
+                generated_text = response.text.strip()
+                if len(generated_text) >= 20:
+                    logger.info("Gemini fallback response generated successfully.")
+                    return generated_text
+                else:
+                    logger.warning(f"Gemini response too short ({len(generated_text)} chars).")
+                    return generated_text
+        except Exception as e:
+            logger.error(f"Gemini API error: {e}")
 
     return "Sir please wait, let me ask my son. He handles all money matters."
 
