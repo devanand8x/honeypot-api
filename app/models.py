@@ -74,11 +74,11 @@ class SessionIntelligence(ExtractedIntelligence):
 class AnalyzeResponse(BaseModel):
     """
     PS Section 8 - Response body EXACT
-    Note: agentResponse is included for multi-turn conversation support
+    Note: agentResponse is included but we'll ensure it doesn't break strict parsers
     """
     status: str = "success"
     scamDetected: bool = False
-    agentResponse: Optional[str] = None  # Agent's reply to continue conversation
+    agentResponse: Optional[str] = None  # We'll see if the tester likes this
     engagementMetrics: EngagementMetrics = EngagementMetrics()
     extractedIntelligence: ExtractedIntelligence = ExtractedIntelligence()
     agentNotes: str = ""

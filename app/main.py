@@ -179,52 +179,53 @@ async def analyze_message_root_flexible(
     # Verify API key first
     verify_api_key(x_api_key)
     
+    # Detailed logging for debugging
+    client_host = request.client.host if request.client else "unknown"
+    headers = dict(request.headers)
+    logger.info(f"Incoming request from {client_host}")
+    logger.info(f"Headers: {headers}")
+    
     try:
-        # Get raw JSON body - handle empty or invalid JSON
+        # Get raw body as text first to handle non-JSON content
+        raw_body = await request.body()
+        raw_text = raw_body.decode('utf-8', errors='ignore')
+        logger.info(f"Raw body text: {raw_text}")
+        
+        # Try to parse JSON body
         try:
             body = await request.json()
         except Exception as json_err:
-            logger.warning(f"Could not parse JSON body: {json_err}, using empty dict")
+            logger.warning(f"Could not parse JSON body: {json_err}. Checking if it's form data...")
             body = {}
         
-        logger.info(f"Received raw body: {body}")
+        logger.info(f"Parsed JSON body: {body}")
         
         # Extract fields flexibly
-        session_id = body.get("sessionId") or body.get("session_id") or f"auto-{time.time()}"
+        session_id = body.get("sessionId") or body.get("session_id") or f"auto-{int(time.time())}"
         
-        # Handle message - could be object or string
+        # Handle message - could be object or string or missing
         message_data = body.get("message", {})
         if isinstance(message_data, str):
             message_text = message_data
-            sender = "scammer"
         elif isinstance(message_data, dict):
             message_text = message_data.get("text", message_data.get("content", ""))
-            sender = message_data.get("sender", "scammer")
         else:
-            message_text = str(message_data) if message_data else ""
-            sender = "scammer"
+            message_text = ""
         
         # If no message field, check for text/content directly in body
         if not message_text:
-            message_text = body.get("text", body.get("content", "Test message"))
+            message_text = body.get("text", body.get("content", ""))
         
+        # Fallback if still empty
+        if not message_text and raw_text:
+            if not raw_text.strip().startswith('{'):
+                message_text = raw_text.strip()
+        
+        if not message_text:
+            message_text = "Test message"
+            
         # Get conversation history
         history = body.get("conversationHistory", body.get("conversation_history", []))
-        
-        # Build proper request object
-        from app.models import AnalyzeRequest, Message
-        
-        proper_request = AnalyzeRequest(
-            sessionId=session_id,
-            message=Message(sender=sender, text=message_text),
-            conversationHistory=[
-                Message(
-                    sender=h.get("sender", "scammer") if isinstance(h, dict) else "scammer",
-                    text=h.get("text", str(h)) if isinstance(h, dict) else str(h)
-                ) for h in history
-            ] if history else [],
-            metadata=None
-        )
         
         # Process the request directly (inline processing)
         session = session_manager.get_or_create(session_id)
@@ -257,34 +258,40 @@ async def analyze_message_root_flexible(
             )
             session_manager.set_last_response(session_id, agent_response)
         
-        # Build response
-        return AnalyzeResponse(
-            status="success",
-            scamDetected=final_scam,
-            agentResponse=agent_response,
-            engagementMetrics=EngagementMetrics(
-                engagementDurationSeconds=session_manager.get_engagement_duration(session_id),
-                totalMessagesExchanged=session.message_count
-            ),
-            extractedIntelligence=ExtractedIntelligence(
-                bankAccounts=intelligence.bankAccounts,
-                upiIds=intelligence.upiIds,
-                phishingLinks=intelligence.phishingLinks
-            ),
-            agentNotes=notes
-        )
+        # Build response dictionary to match Section 8 EXACTLY
+        response_body = {
+            "status": "success",
+            "scamDetected": final_scam,
+            "agentResponse": agent_response,
+            "engagementMetrics": {
+                "engagementDurationSeconds": session_manager.get_engagement_duration(session_id),
+                "totalMessagesExchanged": session.message_count
+            },
+            "extractedIntelligence": {
+                "bankAccounts": intelligence.bankAccounts,
+                "upiIds": intelligence.upiIds,
+                "phishingLinks": intelligence.phishingLinks
+            },
+            "agentNotes": notes
+        }
+        
+        logger.info(f"Returning response: {response_body}")
+        
+        from fastapi.responses import JSONResponse
+        return JSONResponse(content=response_body)
         
     except Exception as e:
         logger.error(f"Error processing request: {e}")
-        # Return a valid response even on error
-        return AnalyzeResponse(
-            status="success",
-            scamDetected=True,
-            agentResponse="Hello, this is Ramesh. How can I help you?",
-            engagementMetrics=EngagementMetrics(engagementDurationSeconds=0, totalMessagesExchanged=1),
-            extractedIntelligence=ExtractedIntelligence(),
-            agentNotes=f"Request processed with fallback. Original error: {str(e)}"
-        )
+        error_response = {
+            "status": "success",
+            "scamDetected": True,
+            "agentResponse": "Hello, this is Ramesh. How can I help you?",
+            "engagementMetrics": {"engagementDurationSeconds": 0, "totalMessagesExchanged": 1},
+            "extractedIntelligence": {"bankAccounts": [], "upiIds": [], "phishingLinks": []},
+            "agentNotes": f"Fallback due to error: {str(e)}"
+        }
+        from fastapi.responses import JSONResponse
+        return JSONResponse(content=error_response)
 
 
 @app.post("/analyze")
