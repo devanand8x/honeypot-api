@@ -221,8 +221,53 @@ async def analyze_message_root_flexible(
             metadata=None
         )
         
-        # Call main analyze function
-        return await analyze_message(proper_request, background_tasks, x_api_key)
+        # Process the request directly (inline processing)
+        session = session_manager.get_or_create(session_id)
+        session_manager.update_activity(session_id)
+        session_manager.increment_message_count(session_id)
+        
+        # Detect scam
+        is_scam, confidence, keywords, notes = detect_scam(message_text)
+        history_score, history_keywords = analyze_conversation_history([
+            {"sender": h.get("sender", "scammer") if isinstance(h, dict) else "scammer",
+             "text": h.get("text", str(h)) if isinstance(h, dict) else str(h)}
+            for h in history
+        ] if history else [])
+        
+        final_scam = is_scam or history_score > 0.3 or session.scam_detected
+        session_manager.set_scam_detected(session_id, final_scam)
+        
+        # Extract intelligence
+        intelligence = extract_intelligence(message_text, session.intelligence)
+        session_manager.update_intelligence(session_id, intelligence)
+        session_manager.update_notes(session_id, notes)
+        
+        # Generate response if scam
+        agent_response = None
+        if final_scam:
+            agent_response = generate_response(
+                current_message=message_text,
+                conversation_history=[{"sender": "scammer", "text": message_text}],
+                scam_type="general"
+            )
+            session_manager.set_last_response(session_id, agent_response)
+        
+        # Build response
+        return AnalyzeResponse(
+            status="success",
+            scamDetected=final_scam,
+            agentResponse=agent_response,
+            engagementMetrics=EngagementMetrics(
+                engagementDurationSeconds=session_manager.get_engagement_duration(session_id),
+                totalMessagesExchanged=session.message_count
+            ),
+            extractedIntelligence=ExtractedIntelligence(
+                bankAccounts=intelligence.bankAccounts,
+                upiIds=intelligence.upiIds,
+                phishingLinks=intelligence.phishingLinks
+            ),
+            agentNotes=notes
+        )
         
     except Exception as e:
         logger.error(f"Error processing request: {e}")
