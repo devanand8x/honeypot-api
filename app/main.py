@@ -180,8 +180,13 @@ async def analyze_message_root_flexible(
     verify_api_key(x_api_key)
     
     try:
-        # Get raw JSON body
-        body = await request.json()
+        # Get raw JSON body - handle empty or invalid JSON
+        try:
+            body = await request.json()
+        except Exception as json_err:
+            logger.warning(f"Could not parse JSON body: {json_err}, using empty dict")
+            body = {}
+        
         logger.info(f"Received raw body: {body}")
         
         # Extract fields flexibly
