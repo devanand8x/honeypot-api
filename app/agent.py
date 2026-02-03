@@ -1,36 +1,124 @@
 """
 AI Agent Module
 Generates human-like responses to engage scammers
-Uses Google Gemini API (free tier)
+Uses Google Gemini API with fallback templates
 """
 
 import os
 import logging
-import google.generativeai as genai
+import random
 from typing import List, Optional
-from pathlib import Path
 from dotenv import load_dotenv
+from google import genai
+from openai import OpenAI
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Load .env file
-env_path = Path(__file__).parent.parent / ".env"
-load_dotenv(dotenv_path=str(env_path), override=True)
+load_dotenv()
+
+# Global client
+_client = None
+
+def get_gemini_client():
+    """Get or create Google Gemini client"""
+    global _client
+    if _client is None:
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if api_key:
+            api_key = api_key.strip()
+            try:
+                logger.info(f"Initializing Gemini with key starting with: {api_key[:10]}...")
+                _client = genai.Client(api_key=api_key)
+            except Exception as e:
+                logger.error(f"Failed to initialize Gemini client: {e}")
+    return _client
 
 
-# Configure Gemini
-def configure_gemini():
-    """Configure Gemini API with key from environment"""
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if api_key:
-        genai.configure(api_key=api_key)
-        # Log version to help debug Render environment
-        try:
-            logger.info(f"Using google-generativeai version: {genai.__version__}")
-        except:
-            pass
-        return True
-    return False
+_nvidia_client = None
+
+def get_nvidia_client():
+    """Build and return NVIDIA client for fallback"""
+    global _nvidia_client
+    if _nvidia_client is None:
+        api_key = os.getenv("NVIDIA_API_KEY")
+        if api_key:
+            api_key = api_key.strip()
+            try:
+                _nvidia_client = OpenAI(
+                    base_url="https://integrate.api.nvidia.com/v1",
+                    api_key=api_key
+                )
+                logger.info("NVIDIA client initialized")
+            except Exception as e:
+                logger.error(f"Failed to initialize NVIDIA client: {e}")
+                return None
+    return _nvidia_client
+
+
+# Fallback responses when Gemini API fails - DISABLED PER USER REQUEST
+# FALLBACK_RESPONSES = {
+#     "general": [
+#         "Oh my god sir! What happened to my account? Please tell me what to do sir, I am very confused.",
+#         "Sir please help me! I don't understand this. Which account are you talking about sir?",
+#         "Haan sir? My account has problem? Please explain properly sir, I am getting worried.",
+#         "Oh no sir! Please don't block my account. What should I do now sir? Tell me please.",
+#         "Sir I am very scared now. Please tell me step by step what I need to do.",
+#     ],
+#     "bank": [
+#         "Sir which bank account? I have SBI and PNB both. Which one has problem sir?",
+#         "My bank account sir? But I just checked yesterday, everything was fine. What happened?",
+#         "Sir please tell me the account number so I can check. I have multiple accounts sir.",
+#     ],
+#     "bank_provided": [
+#         "Which account is this sir? My son handles these things, I will have to ask him.",
+#         "I am looking at the numbers you sent sir, but I am not able to understand what to do next.",
+#         "Is this account safe sir? I am getting very worried about my money.",
+#     ],
+#     "upi": [
+#         "UPI sir? I don't know how to use UPI properly. My son usually does it for me.",
+#         "Sir what is UPI ID? Can you give me phone number to call instead?",
+#         "I am not good with these apps sir. Can you explain how to send money?",
+#     ],
+#     "upi_provided": [
+#         "I see the ID sir, but my phone is not supporting the app. Can I pay some other way?",
+#         "Sir I am trying to use the UPI ID you sent, but it is showing error. What to do?",
+#         "Is this the official ID sir? I am scared of these online payments.",
+#     ],
+#     "otp": [
+#         "OTP sir? I didn't receive any OTP. Let me check my phone... one minute sir.",
+#         "Sir the OTP is not coming. Should I give you my phone number again?",
+#         "I got some numbers sir but I am confused. Is it safe to share OTP?",
+#     ],
+#     "link": [
+#         "Link sir? I am not able to click links on this phone. Can you tell me what to do?",
+#         "Sir I am scared to click links. Last time my friend got virus. Is this safe?",
+#         "Where is the link sir? I cannot see properly. Please send again.",
+#     ],
+#     "link_provided": [
+#         "Sir the link you sent is not opening on my phone. Can you tell me another way?",
+#         "I am clicking the link but it is showing 'Page Not Found'. Is there some problem sir?",
+#         "Sir, my son told me never to click such links. Are you sure this is from the bank?",
+#     ],
+#     "money": [
+#         "Sir this is too much money for me. Can I pay in installments? I am poor person sir.",
+#         "Transfer money sir? But I don't have money in account right now. What to do?",
+#         "Sir please wait, let me ask my son. He handles all money matters.",
+#         "Sir I don't have this much money. Please tell me some other way.",
+#         "So much money sir? Let me check with my family first. Please wait.",
+#     ],
+#     "threat": [
+#         "Sir please don't do legal action! I will do whatever you say. Please help me.",
+#         "Oh god, police sir? I am honest person sir, I didn't do anything wrong!",
+#         "Sir I am very scared. Please give me some time, I will arrange everything.",
+#     ]
+# }
+
+
+def get_fallback_response(message: str) -> str:
+    """DISABLED PER USER REQUEST"""
+    return "Sir please wait, let me ask my son. He handles all money matters."
 
 
 # System prompt for the agent persona
@@ -42,6 +130,7 @@ YOUR CHARACTER:
 - Makes occasional spelling mistakes
 - Polite and respectful (uses "sir", "please")
 - Asks many questions to understand better
+- Slow and confused, which helps in wasting the scammer's time
 
 SAFETY & ETHICS (CRITICAL):
 - NEVER use profanity, abusive language, or insults, even if the user is abusive.
@@ -53,12 +142,11 @@ SAFETY & ETHICS (CRITICAL):
 HOW TO RESPOND:
 1. Stay in character as Ramesh
 2. Act worried and confused about the message
-3. Ask for more details and clarification
-4. Request specific information like:
-   - "Which bank account sir?"
-   - "Can you send me the link?"
-   - "What UPI ID should I use?"
-   - "What is your phone number?"
+3. RELEVANCE RULE: Do not ask for information that the scammer has already provided.
+   - If they sent a UPI ID, do not ask "What is your UPI ID?". Instead, say you are having trouble using it.
+   - If they sent a link, do not ask "Send me the link". Instead, say the link is not opening.
+   - If they sent an account number, do not ask "Which account?". Instead, ask if it is safe.
+4. Ask for more details and clarification in a worried tone.
 5. Use simple English only
 6. Keep response to 1-3 sentences
 7. Sound genuine and concerned
@@ -86,124 +174,100 @@ def generate_response(
     scam_type: str = "general"
 ) -> str:
     """
-    Generate a human-like response using Gemini
-    Falls back to template responses if API fails
+    Generate a human-like response using Google Gemini API
+    Falls back to template responses if Gemini fails
     """
     
     if conversation_history is None:
         conversation_history = []
     
-    # Try Gemini API first
-    gemini_configured = configure_gemini()
+    conversation_context = build_conversation_context(
+        conversation_history, 
+        current_message
+    )
     
-    if gemini_configured:
-        try:
-            # Safety settings to allow roleplay content
-            safety_settings = [
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-            ]
-            
-            # Priority list for models (Expanded for maximal compatibility)
-            models_to_try = [
-                'models/gemini-1.5-flash',
-                'models/gemini-1.5-flash-latest',
-                'models/gemini-1.0-pro',
-                'models/gemini-pro',
-                'models/gemini-pro-latest',
-                'gemini-1.5-flash',
-                'gemini-1.0-pro',
-                'gemini-pro',
-                'gemini-flash-latest'
-            ]
-            
-            conversation_context = build_conversation_context(
-                conversation_history, 
-                current_message
-            )
-            
-            full_prompt = f"""{SYSTEM_PROMPT}
+    full_prompt = f"""{SYSTEM_PROMPT}
 
 CONVERSATION SO FAR:
 {conversation_context}
 
 Generate your response as Ramesh. Keep it short, worried, and ask for clarification. Make spelling mistakes occasionally."""
-            
-            for model_name in models_to_try:
-                try:
-                    model = genai.GenerativeModel(
-                        model_name,
-                        safety_settings=safety_settings
-                    )
-                    
-                    response = model.generate_content(
-                        full_prompt,
-                        generation_config=genai.types.GenerationConfig(
-                            max_output_tokens=150,
-                            temperature=0.8,
-                        )
-                    )
-                    
-                    if response and response.candidates and len(response.candidates) > 0:
-                        candidate = response.candidates[0]
-                        if candidate.content and candidate.content.parts:
-                            text = candidate.content.parts[0].text
-                            return text.strip()
-                except Exception as inner_e:
-                    logger.warning(f"Failed to use model {model_name}: {inner_e}")
-                    continue
-                
+
+    # Try Gemini first
+    client = get_gemini_client()
+    if client:
+        try:
+            logger.info("Attempting response generation with Gemini...")
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=full_prompt,
+                config={
+                    "max_output_tokens": 150,
+                    "temperature": 0.8
+                }
+            )
+            if response and response.text:
+                generated_text = response.text.strip()
+                # Check if response is complete (not truncated)
+                # A proper response should be at least 30 characters
+                if len(generated_text) >= 20: # Lowered to allow shorter but relevant responses
+                    # Check for obvious irrelevant phrases when info is provided
+                    if "where is the link" in generated_text.lower() and ("http" in current_message.lower() or "www" in current_message.lower()):
+                        logger.warning("Gemini generated irrelevant 'where is the link' response. Proceeding with Gemini as fallback is disabled.")
+                        return generated_text
+                    elif "which account" in generated_text.lower() and any(char.isdigit() for char in current_message):
+                        logger.warning("Gemini generated irrelevant 'which account' response. Proceeding with Gemini as fallback is disabled.")
+                        return generated_text
+                    else:
+                        logger.info("Gemini response generated successfully.")
+                        return generated_text
+                else:
+                    logger.warning(f"Gemini response too short ({len(generated_text)} chars). Returning anyway as fallback is disabled.")
+                    return generated_text
         except Exception as e:
+            error_msg = str(e).lower()
             logger.error(f"Gemini API error: {e}")
-            # Fall through to template responses
-    
-    # Fallback template responses
-    return generate_fallback_response(current_message, len(conversation_history))
+            
+            # If Gemini fails (especially 429 quota), try NVIDIA Fallback
+            if "429" in error_msg or "quota" in error_msg or "limit" in error_msg or "exhausted" in error_msg:
+                logger.info("Attempting fallback to NVIDIA NIM...")
+                nvidia_client = get_nvidia_client()
+                if nvidia_client:
+                    try:
+                        response = nvidia_client.chat.completions.create(
+                            model="meta/llama-3.1-8b-instruct",
+                            messages=[{"role": "system", "content": SYSTEM_PROMPT}, 
+                                     {"role": "user", "content": f"CONVERSATION SO FAR:\n{conversation_context}\n\nGenerate your response as Ramesh. Keep it short, worried, and ask for clarification. Make spelling mistakes occasionally."}],
+                            temperature=0.7,
+                            max_tokens=150,
+                            top_p=1
+                        )
+                        if response.choices[0].message.content:
+                            generated_text = response.choices[0].message.content.strip()
+                            logger.info("NVIDIA response generated successfully.")
+                            return generated_text
+                    except Exception as nv_e:
+                        logger.error(f"NVIDIA API error: {nv_e}")
+            
+            return "Sir please wait, my network is slow. What did you say?"
 
+    # No Gemini available, try NVIDIA
+    nvidia_client = get_nvidia_client()
+    if nvidia_client:
+        try:
+            response = nvidia_client.chat.completions.create(
+                model="meta/llama-3.1-8b-instruct",
+                messages=[{"role": "system", "content": SYSTEM_PROMPT}, 
+                         {"role": "user", "content": f"CONVERSATION SO FAR:\n{conversation_context}\n\nGenerate your response as Ramesh. Keep it short, worried, and ask for clarification. Make spelling mistakes occasionally."}],
+                temperature=0.7,
+                max_tokens=150,
+                top_p=1
+            )
+            if response.choices[0].message.content:
+                generated_text = response.choices[0].message.content.strip()
+                return generated_text
+        except Exception as nv_e:
+            logger.error(f"NVIDIA API error: {nv_e}")
 
-def generate_fallback_response(message: str, turn_count: int) -> str:
-    """Generate template-based responses when LLM is unavailable"""
-    
-    message_lower = message.lower()
-    
-    # First message responses
-    if turn_count == 0:
-        if any(kw in message_lower for kw in ["block", "suspend", "freeze"]):
-            return "Oh my god! What happened to my account? Please sir help me what should I do? 🙏"
-        elif any(kw in message_lower for kw in ["prize", "winner", "lottery"]):
-            return "Really? I won something? But I dont remember entering any contest sir. Please tell me more details?"
-        elif any(kw in message_lower for kw in ["otp", "verify"]):
-            return "Verification for what sir? I am confused. Can you please explain properly?"
-        else:
-            return "Hello sir, I received your message but I am not understanding fully. Can you please explain what is the problem?"
-    
-    # Follow-up responses based on keywords
-    if any(kw in message_lower for kw in ["upi", "vpa", "@"]):
-        return "Ok sir, I will send. But which UPI ID exactly? Please write clearly so I dont make mistake."
-    
-    if any(kw in message_lower for kw in ["bank", "account"]):
-        return "Sir I have 2 bank accounts - SBI and PNB. Which one you are talking about? What is the problem exactly?"
-    
-    if any(kw in message_lower for kw in ["link", "click", "http"]):
-        return "Ok I will click. Can you send the link again? My phone is old sometimes links dont open properly."
-    
-    if any(kw in message_lower for kw in ["otp", "code"]):
-        return "Sir OTP ke liye I need to open my phone. Which bank's OTP you need? Let me check."
-    
-    if any(kw in message_lower for kw in ["call", "phone", "whatsapp"]):
-        return "Yes please call me sir. My number is... wait, what is your number? I will give missed call."
-    
-    if any(kw in message_lower for kw in ["money", "transfer", "send", "pay"]):
-        return "How much I need to send? And to which account/UPI? I am ready to send but tell me clearly."
-    
-    # Generic worried response
-    responses = [
-        "Sir I am very tensed now. Please tell me exactly what to do step by step?",
-        "Ok ok I understand. But please give me your number so I can call and understand better?",
-        "Sir please help me. I dont want any problem with my account. Tell me what you need from me?",
-        "I am ready to do whatever you say sir. Just tell me clearly what information you need?",
-    ]
-    
-    return responses[turn_count % len(responses)]
+    return "Sir please wait, let me ask my son. He handles all money matters."
+

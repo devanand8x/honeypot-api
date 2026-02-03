@@ -14,8 +14,8 @@ URGENCY_KEYWORDS = [
     "limited time", "act now", "don't delay", "expire", "deadline",
     "expiring", "last chance", "final notice", "action required",
     "attention", "alert", "notice", "overdue", "disconnection",
-    # Hindi
-    "turant", "jaldi", "abhi", "aaj hi", "fauran", "saavdhan"
+    # Hindi / Hinglish
+    "turant", "jaldi", "abhi", "aaj hi", "fauran", "saavdhan", "fatafat", "zaroori", "urgently"
 ]
 
 THREAT_KEYWORDS = [
@@ -27,8 +27,8 @@ THREAT_KEYWORDS = [
     "compromised", "security alert", "warning", "investigation",
     "under surveillance", "warrant issued", "held", "detained",
     "lapsed", "closed", "deactivated", "disabled", "invalid",
-    # Hindi
-    "band", "block", "arrest", "jail", "thana", "case"
+    # Hindi / Hinglish
+    "band", "block", "arrest", "jail", "thana", "case", "bandh", "police station", "shikayat", "fir"
 ]
 
 FINANCIAL_KEYWORDS = [
@@ -43,14 +43,16 @@ FINANCIAL_KEYWORDS = [
     "insurance", "premium", "policy", "duty", "tax", "fee", "charge",
     "electricity", "bill", "light", "power", "meter", "gold", "coin",
     "car", "bike", "laptop", "job", "hiring", "vacancy", "interview",
-    # Hindi
-    "khata", "paisa", "rupees", "rs", "inaam", "naukri"
+    # Hindi / Hinglish
+    "khata", "paisa", "rupees", "rs", "inaam", "naukri", "lotry", "paisa nikaalna", "khaate mein", "muft"
 ]
 
 AUTHORITY_KEYWORDS = [
     "rbi", "reserve bank", "sbi", "hdfc", "icici", "axis",
     "government", "income tax", "customs", "police", "cbi",
-    "customer care", "support", "helpline", "official"
+    "customer care", "support", "helpline", "official", "department",
+    "telecom", "dot", "trai", "tneb", "bescom", "airtel", "jio", "vi",
+    "fedex", "delhivery", "bluedart", "dhl", "amazon", "netflix", "bank"
 ]
 
 REQUEST_KEYWORDS = [
@@ -58,8 +60,8 @@ REQUEST_KEYWORDS = [
     "confirm", "update", "validate", "submit", "link", "http", "www",
     "open", "visit", "login", "register", "call", "contact", "dial",
     "press", "tap", "download", "install",
-    # Hindi
-    "bhejo", "do", "batao", "dijiye", "karo"
+    # Hindi / Hinglish
+    "bhejo", "do", "batao", "dijiye", "karo", "check karo", "kliye kijiye", "dial karein"
 ]
 
 # Suspicious patterns

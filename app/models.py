@@ -51,14 +51,17 @@ class EngagementMetrics(BaseModel):
 class ExtractedIntelligence(BaseModel):
     """
     PS Section 8 - extractedIntelligence object (Strict for Response)
+    Only 3 fields as per PRD Section 8
     """
     bankAccounts: List[str] = []
     upiIds: List[str] = []
     phishingLinks: List[str] = []
 
+
 class SessionIntelligence(ExtractedIntelligence):
     """
     Internal intelligence storage (includes Section 12 callback fields)
+    Has additional fields for GUVI callback
     """
     phoneNumbers: List[str] = []
     suspiciousKeywords: List[str] = []
@@ -66,14 +69,15 @@ class SessionIntelligence(ExtractedIntelligence):
 
 class AnalyzeResponse(BaseModel):
     """
-    PS Section 8 - Response body EXACT (No agentResponse for evaluation stability)
+    PS Section 8 - Response body EXACT
+    Note: agentResponse is included for multi-turn conversation support
     """
     status: str = "success"
     scamDetected: bool = False
+    agentResponse: Optional[str] = None  # Agent's reply to continue conversation
     engagementMetrics: EngagementMetrics = EngagementMetrics()
     extractedIntelligence: ExtractedIntelligence = ExtractedIntelligence()
     agentNotes: str = ""
-    agentResponse: Optional[str] = None
 
 
 # ============== CALLBACK MODEL (PS Section 12 EXACT) ==============

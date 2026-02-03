@@ -77,7 +77,7 @@ from fastapi import Request
 # Store request timestamps: {ip: [timestamp1, timestamp2]}
 rate_limit_store = defaultdict(list)
 RATE_LIMIT_WINDOW = 60  # seconds
-RATE_LIMIT_MAX_REQUESTS = 60  # requests per window
+RATE_LIMIT_MAX_REQUESTS = 200  # requests per window (increased for testing)
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):

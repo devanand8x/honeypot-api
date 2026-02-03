@@ -11,6 +11,7 @@ services:
     environment:
       - API_KEY=${API_KEY:-honeypot_secret_2026}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
       - GUVI_CALLBACK_URL=${GUVI_CALLBACK_URL:-https://hackathon.guvi.in/api/updateHoneyPotFinalResult}
     volumes:
       - ./sessions.json:/app/sessions.json
