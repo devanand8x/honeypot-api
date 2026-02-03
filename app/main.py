@@ -147,9 +147,9 @@ def verify_api_key(x_api_key: str = Header(None)):
     return x_api_key
 
 
-@app.get("/health", response_model=HealthResponse)
+@app.api_route("/health", methods=["GET", "HEAD"], response_model=HealthResponse)
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint - supports GET and HEAD for uptime monitoring"""
     return HealthResponse(status="healthy", version="1.0.0")
 
 
