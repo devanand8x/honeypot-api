@@ -83,11 +83,17 @@ RATE_LIMIT_MAX_REQUESTS = 200  # requests per window (increased for testing)
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
-    """Simple rate limiting middleware"""
+    """Simple rate limiting middleware with deep diagnostic logging"""
+    client_ip = request.client.host if request.client else "unknown"
+    method = request.method
+    path = request.url.path
+    
+    # LOG EVERY REQUEST IMMEDIATELY AT MIDDLEWARE LEVEL
+    logger.info(f"MIDDLEWARE TRAFFIC: {method} {path} from {client_ip}")
+    logger.debug(f"MIDDLEWARE HEADERS: {dict(request.headers)}")
+    
     try:
-        client_ip = request.client.host if request.client else "unknown"
         now = time.time()
-        
         # Clean up old timestamps
         rate_limit_store[client_ip] = [
             t for t in rate_limit_store[client_ip] 
@@ -106,7 +112,6 @@ async def rate_limit_middleware(request: Request, call_next):
         rate_limit_store[client_ip].append(now)
     except Exception as e:
         logger.error(f"Error in rate limit middleware: {e}")
-        # Continue anyway, don't block requests if limiter fails
     
     response = await call_next(request)
     return response
@@ -153,6 +158,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.api_route("/", methods=["GET", "POST", "HEAD"])
 async def analyze_message_root_flexible(
     request: Request,
+    background_tasks: BackgroundTasks,
     x_api_key: str = Header(None)
 ):
     """
@@ -271,6 +277,18 @@ async def analyze_message_root_flexible(
             "agentNotes": notes
         }
         
+        # Trigger callback if appropriate
+        if should_send_callback(final_scam, session.message_count, session.callback_sent):
+            background_tasks.add_task(
+                send_guvi_callback,
+                session_id,
+                intelligence,
+                final_scam,
+                session.message_count
+            )
+            session_manager.set_callback_sent(session_id, True)
+            logger.info(f"Callback scheduled for session {session_id}")
+            
         logger.info(f"Returning response: {response_body}")
         
         from fastapi.responses import JSONResponse
@@ -293,13 +311,14 @@ async def analyze_message_root_flexible(
 @app.post("/analyze")
 async def analyze_message_flexible(
     request: Request,
+    background_tasks: BackgroundTasks,
     x_api_key: str = Header(None)
 ):
     """
     Flexible /analyze endpoint - handles ANY JSON format
     """
     # Simply delegate to root flexible handler
-    return await analyze_message_root_flexible(request, x_api_key)
+    return await analyze_message_root_flexible(request, background_tasks, x_api_key)
 
 
 @app.get("/session/{session_id}")
