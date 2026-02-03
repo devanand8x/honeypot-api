@@ -79,7 +79,7 @@ def should_send_callback(
     
     Conditions:
     1. Scam was detected
-    2. Sufficient engagement (at least 3 messages)
+    2. At least 1 message processed
     3. Callback not already sent for this session
     """
     
@@ -89,8 +89,8 @@ def should_send_callback(
     if not scam_detected:
         return False
     
-    # Send callback after sufficient engagement
-    if message_count >= 3:
+    # Send callback immediately when scam is detected (changed from 3 to 1)
+    if message_count >= 1:
         return True
     
     return False
