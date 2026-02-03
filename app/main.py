@@ -69,6 +69,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# Custom validation error handler for better debugging
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Handle validation errors with helpful messages"""
+    logger.error(f"Validation error: {exc.errors()}")
+    logger.error(f"Request body: {exc.body}")
+    
+    return JSONResponse(
+        status_code=422,
+        content={
+            "status": "error",
+            "detail": "Invalid request body format",
+            "errors": exc.errors(),
+            "expected_format": {
+                "sessionId": "string (optional, auto-generated if missing)",
+                "message": {
+                    "sender": "scammer or user",
+                    "text": "message content (required)",
+                    "timestamp": "ISO-8601 format (optional)"
+                },
+                "conversationHistory": "array of messages (optional)",
+                "metadata": "optional object with channel, language, locale"
+            }
+        }
+    )
+
 # Security: Simple In-Memory Rate Limiter
 from collections import defaultdict
 import time

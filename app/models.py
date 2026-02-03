@@ -14,6 +14,8 @@ class Message(BaseModel):
     """
     PS Section 6.3 - message object
     """
+    model_config = {"extra": "allow"}  # Allow extra fields
+    
     sender: str = "scammer"  # "scammer" or "user"
     text: str = ""  # Message content
     timestamp: Optional[Union[str, int, float]] = Field(default_factory=lambda: datetime.now().isoformat())  # ISO-8601 or Unix timestamp
@@ -32,7 +34,9 @@ class AnalyzeRequest(BaseModel):
     """
     PS Section 6.1 and 6.2 - Request body EXACT
     """
-    sessionId: str
+    model_config = {"extra": "allow"}  # Allow extra fields for flexibility
+    
+    sessionId: Optional[str] = Field(default_factory=lambda: f"session-{datetime.now().timestamp()}")
     message: Message
     conversationHistory: Optional[List[Message]] = []
     metadata: Optional[Metadata] = None
