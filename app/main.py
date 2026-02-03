@@ -237,127 +237,17 @@ async def analyze_message_root_flexible(
         )
 
 
-@app.post("/analyze", response_model=AnalyzeResponse)
-async def analyze_message(
-    request: AnalyzeRequest,
+@app.post("/analyze")
+async def analyze_message_flexible(
+    request: Request,
     background_tasks: BackgroundTasks,
     x_api_key: str = Header(None)
 ):
     """
-    Main endpoint to analyze incoming messages
-    
-    Flow:
-    1. Verify API key
-    2. Get/create session
-    3. Detect scam intent
-    4. If scam: activate AI agent
-    5. Extract intelligence
-    6. Return response
-    7. Send GUVI callback if conditions met
+    Flexible /analyze endpoint - handles ANY JSON format
     """
-    
-    # Verify API key
-    verify_api_key(x_api_key)
-    
-    try:
-        # Get or create session
-        session = session_manager.get_or_create(request.sessionId)
-        session_manager.update_activity(request.sessionId)
-        session_manager.increment_message_count(request.sessionId)
-        
-        # Convert conversation history for processing
-        history_dicts = [
-            {"sender": msg.sender, "text": msg.text, "timestamp": msg.timestamp}
-            for msg in request.conversationHistory
-        ]
-        
-        # Detect scam in current message
-        is_scam, confidence, keywords, notes = detect_scam(request.message.text)
-        
-        # Also analyze conversation history
-        history_score, history_keywords = analyze_conversation_history(history_dicts)
-        
-        # Combine scam detection results
-        final_scam = is_scam or history_score > 0.3 or session.scam_detected
-        all_keywords = list(set(keywords + history_keywords))
-        
-        # Update session
-        session_manager.set_scam_detected(request.sessionId, final_scam)
-        
-        # Extract intelligence from current message
-        intelligence = extract_intelligence(request.message.text, session.intelligence)
-        
-        # Also extract from history
-        for msg in history_dicts:
-            if msg.get("sender") == "scammer":
-                intelligence = extract_intelligence(msg.get("text", ""), intelligence)
-        
-        # Add detected keywords to intelligence
-        intelligence.suspiciousKeywords = list(set(
-            intelligence.suspiciousKeywords + all_keywords
-        ))
-        
-        session_manager.update_intelligence(request.sessionId, intelligence)
-        session_manager.update_notes(request.sessionId, notes)
-        
-        # Generate agent response if scam detected
-        agent_response = None
-        if final_scam:
-            agent_response = generate_response(
-                current_message=request.message.text,
-                conversation_history=history_dicts,
-                scam_type="general"
-            )
-            session_manager.set_last_response(request.sessionId, agent_response)
-        
-        # Get engagement metrics
-        duration = session_manager.get_engagement_duration(request.sessionId)
-        message_count = session.message_count
-        
-        # Check if callback should be sent
-        if should_send_callback(
-            scam_detected=final_scam,
-            message_count=message_count,
-            callback_already_sent=session.callback_sent
-        ):
-            # Send callback in background
-            background_tasks.add_task(
-                send_guvi_callback,
-                session_id=request.sessionId,
-                scam_detected=final_scam,
-                total_messages=message_count,
-                intelligence=intelligence,
-                agent_notes=notes
-            )
-            session_manager.mark_callback_sent(request.sessionId)
-        
-        # Build response with STRICT intelligence (only 3 fields from Section 8)
-        strict_intelligence = ExtractedIntelligence(
-            bankAccounts=intelligence.bankAccounts,
-            upiIds=intelligence.upiIds,
-            phishingLinks=intelligence.phishingLinks
-        )
-
-        response = AnalyzeResponse(
-            status="success",
-            scamDetected=final_scam,
-            agentResponse=agent_response,
-            engagementMetrics=EngagementMetrics(
-                engagementDurationSeconds=duration,
-                totalMessagesExchanged=message_count
-            ),
-            extractedIntelligence=strict_intelligence,
-            agentNotes=notes
-        )
-        
-        return response
-        
-    except Exception as e:
-        logger.error(f"Error processing request: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )
+    # Simply delegate to root flexible handler
+    return await analyze_message_root_flexible(request, background_tasks, x_api_key)
 
 
 @app.get("/session/{session_id}")
