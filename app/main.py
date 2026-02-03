@@ -9,7 +9,7 @@ Endpoints:
 
 import os
 import logging
-from fastapi import FastAPI, HTTPException, Header, BackgroundTasks, Request
+from fastapi import FastAPI, HTTPException, Header, BackgroundTasks, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -175,45 +175,51 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-@app.get("/")
-async def root():
-    """Root GET handler for diagnosis"""
-    return {"message": "HoneyPot API is Live!"}
-
-
-@app.post("/")
+@app.api_route("/", methods=["GET", "POST", "HEAD"])
 async def analyze_message_root_flexible(
     request: Request,
-    background_tasks: BackgroundTasks,
     x_api_key: str = Header(None)
 ):
     """
-    Flexible root endpoint that accepts ANY JSON format.
-    Handles both PRD-compliant format and simple tester format.
+    Flexible root endpoint that handles GET, POST, and HEAD.
+    Logs EVERYTHING for diagnostics.
     """
-    # Verify API key first
-    verify_api_key(x_api_key)
-    
-    # Detailed logging for debugging
+    # 1. LOG EVERYTHING IMMEDIATELY
     client_host = request.client.host if request.client else "unknown"
+    method = request.method
     headers = dict(request.headers)
-    logger.info(f"Incoming request from {client_host}")
-    logger.info(f"Headers: {headers}")
+    logger.info(f"DIAGNOSTIC: {method} request to / from {client_host}")
+    logger.info(f"DIAGNOSTIC Headers: {headers}")
+    
+    # Handle HEAD request (Commonly used by monitors)
+    if method == "HEAD":
+        return Response(status_code=200)
+    
+    # Handle GET request (Used for manual health check)
+    if method == "GET":
+        return {"message": "HoneyPot API is Live!"}
+
+    # 2. Verify API key (Only for POST)
+    try:
+        verify_api_key(x_api_key)
+    except HTTPException as auth_err:
+        logger.warning(f"AUTH FAILED for {client_host}: {auth_err.detail}")
+        raise auth_err
     
     try:
-        # Get raw body as text first to handle non-JSON content
+        # Get raw body as text for debugging
         raw_body = await request.body()
         raw_text = raw_body.decode('utf-8', errors='ignore')
-        logger.info(f"Raw body text: {raw_text}")
+        logger.info(f"DIAGNOSTIC Raw body: {raw_text}")
         
         # Try to parse JSON body
         try:
             body = await request.json()
         except Exception as json_err:
-            logger.warning(f"Could not parse JSON body: {json_err}. Checking if it's form data...")
+            logger.warning(f"JSON Parse fail: {json_err}. Using empty dict.")
             body = {}
         
-        logger.info(f"Parsed JSON body: {body}")
+        logger.info(f"DIAGNOSTIC Parsed body: {body}")
         
         # Extract fields flexibly
         session_id = body.get("sessionId") or body.get("session_id") or f"auto-{int(time.time())}"
@@ -312,14 +318,13 @@ async def analyze_message_root_flexible(
 @app.post("/analyze")
 async def analyze_message_flexible(
     request: Request,
-    background_tasks: BackgroundTasks,
     x_api_key: str = Header(None)
 ):
     """
     Flexible /analyze endpoint - handles ANY JSON format
     """
     # Simply delegate to root flexible handler
-    return await analyze_message_root_flexible(request, background_tasks, x_api_key)
+    return await analyze_message_root_flexible(request, x_api_key)
 
 
 @app.get("/session/{session_id}")
