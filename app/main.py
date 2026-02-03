@@ -139,6 +139,16 @@ async def root():
     }
 
 
+@app.post("/", response_model=AnalyzeResponse)
+async def analyze_message_root(
+    request: AnalyzeRequest,
+    background_tasks: BackgroundTasks,
+    x_api_key: str = Header(None)
+):
+    """Alias for /analyze to support base URL testing"""
+    return await analyze_message(request, background_tasks, x_api_key)
+
+
 @app.post("/analyze", response_model=AnalyzeResponse)
 async def analyze_message(
     request: AnalyzeRequest,
