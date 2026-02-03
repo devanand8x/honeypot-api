@@ -7,3 +7,4 @@ httpx==0.26.0
 python-dotenv==1.0.0
 filelock==3.20.3
 google-genai>=1.0.0
+openai
