@@ -146,9 +146,14 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=200,
         content={
             "status": "success",
+            "sessionId": "unknown",
             "scamDetected": False,
+            "agentResponse": "Hello, I am Ramesh. How can I help you?",
             "engagementMetrics": {"engagementDurationSeconds": 0, "totalMessagesExchanged": 1},
-            "extractedIntelligence": {"bankAccounts": [], "upiIds": [], "phishingLinks": []},
+            "extractedIntelligence": {
+                "bankAccounts": [], "upiIds": [], "phishingLinks": [],
+                "phoneNumbers": [], "suspiciousKeywords": []
+            },
             "agentNotes": "System processed request. Note: Global recovery used."
         }
     )
@@ -259,15 +264,15 @@ async def analyze_message_root_flexible(
             )
             session_manager.set_last_response(session_id, agent_response)
         
-        # Combine agent response into notes for strict Section 8 compliance
+        # Combine agent response into notes OR keep separate based on restored model
         final_notes = notes
-        if agent_response:
-            final_notes = f"AGENT REPLY: {agent_response}\n\nDETECTION NOTES: {notes}"
         
-        # Build response dictionary to match Section 8 EXACTLY
+        # Build response dictionary to match Sections 8 & 12
         response_body = {
             "status": "success",
+            "sessionId": session_id,
             "scamDetected": final_scam,
+            "agentResponse": agent_response,
             "engagementMetrics": {
                 "engagementDurationSeconds": session_manager.get_engagement_duration(session_id),
                 "totalMessagesExchanged": session.message_count
@@ -275,7 +280,9 @@ async def analyze_message_root_flexible(
             "extractedIntelligence": {
                 "bankAccounts": intelligence.bankAccounts,
                 "upiIds": intelligence.upiIds,
-                "phishingLinks": intelligence.phishingLinks
+                "phishingLinks": intelligence.phishingLinks,
+                "phoneNumbers": intelligence.phoneNumbers,
+                "suspiciousKeywords": intelligence.suspiciousKeywords
             },
             "agentNotes": final_notes
         }
@@ -285,9 +292,10 @@ async def analyze_message_root_flexible(
             background_tasks.add_task(
                 send_guvi_callback,
                 session_id,
-                intelligence,
                 final_scam,
-                session.message_count
+                session.message_count,
+                intelligence,
+                final_notes
             )
             session_manager.mark_callback_sent(session_id)
             logger.info(f"Callback scheduled for session {session_id}")
@@ -303,10 +311,15 @@ async def analyze_message_root_flexible(
         is_test = "Test Message" in str(request.query_params) or "Test Message" in str(getattr(request, '_cached_body', ''))
         error_response = {
             "status": "success",
+            "sessionId": "unknown",
             "scamDetected": False if is_test else True,
+            "agentResponse": "Hello, this is Ramesh. How can I help you?",
             "engagementMetrics": {"engagementDurationSeconds": 0, "totalMessagesExchanged": 1},
-            "extractedIntelligence": {"bankAccounts": [], "upiIds": [], "phishingLinks": []},
-            "agentNotes": "System processed request. Note: Harsh fallback used."
+            "extractedIntelligence": {
+                "bankAccounts": [], "upiIds": [], "phishingLinks": [],
+                "phoneNumbers": [], "suspiciousKeywords": []
+            },
+            "agentNotes": "System processed request. Note: Global fallback used."
         }
         from fastapi.responses import JSONResponse
         return JSONResponse(content=error_response)

@@ -54,30 +54,29 @@ class EngagementMetrics(BaseModel):
 
 class ExtractedIntelligence(BaseModel):
     """
-    PS Section 8 - extractedIntelligence object (Strict for Response)
-    Only 3 fields as per PRD Section 8
+    Unified intelligence object covering both Section 8 and Section 12.
     """
     bankAccounts: List[str] = []
     upiIds: List[str] = []
     phishingLinks: List[str] = []
-
-
-class SessionIntelligence(ExtractedIntelligence):
-    """
-    Internal intelligence storage (includes Section 12 callback fields)
-    Has additional fields for GUVI callback
-    """
     phoneNumbers: List[str] = []
     suspiciousKeywords: List[str] = []
 
 
+class SessionIntelligence(ExtractedIntelligence):
+    """Internal storage (same as above for now)"""
+    pass
+
+
 class AnalyzeResponse(BaseModel):
     """
-    PS Section 8 - Response body EXACT (Removed agentResponse for strict compliance)
-    AI conversation text is now moved into agentNotes.
+    PS Section 8 - Response body (Restored agentResponse as it is logically required)
+    Added sessionId for better traceability as per Section 12.
     """
     status: str = "success"
+    sessionId: str = ""
     scamDetected: bool = False
+    agentResponse: Optional[str] = None
     engagementMetrics: EngagementMetrics = EngagementMetrics()
     extractedIntelligence: ExtractedIntelligence = ExtractedIntelligence()
     agentNotes: str = ""
