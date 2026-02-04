@@ -63,22 +63,31 @@ def extract_intelligence(text: str, existing: Optional[ExtractedIntelligence] = 
     text_upper = text.upper()
     text_lower = text.lower()
     
-    # Extract bank accounts (only if looks like account number context)
-    account_context_keywords = ["account", "a/c", "khata", "bank"]
-    if any(kw in text_lower for kw in account_context_keywords):
-        accounts = re.findall(PATTERNS["bank_account"], text)
-        # Filter out unlikely matches (year-like numbers, etc)
-        accounts = [a for a in accounts if len(a) >= 10 and not a.startswith("20")]
-        existing.bankAccounts = list(set(existing.bankAccounts + accounts))
+    # Extract bank accounts (relaxed context)
+    account_context_keywords = ["account", "a/c", "khata", "bank", "card", "number", "no."]
+    potential_accounts = re.findall(PATTERNS["bank_account"], text)
+    if potential_accounts:
+        if any(kw in text_lower for kw in account_context_keywords):
+            # Context found, add all
+            filtered = [a for a in potential_accounts if len(a) >= 9 and not a.startswith("20")]
+            existing.bankAccounts = list(set(existing.bankAccounts + filtered))
+        else:
+            # No context, only add if significantly long (12+ digits like Aadhaar or long accounts)
+            filtered = [a for a in potential_accounts if len(a) >= 12]
+            existing.bankAccounts = list(set(existing.bankAccounts + filtered))
     
-    # Extract UPI IDs
+    # Extract UPI IDs (Broaden to catch more providers like @sbi, @ybl, @paytm)
     upi_ids = re.findall(PATTERNS["upi_id"], text, re.IGNORECASE)
-    # Filter out emails (UPI IDs don't have domain extensions)
-    upi_ids = [u for u in upi_ids if not any(ext in u.lower() for ext in [".com", ".in", ".org", ".net"])]
+    # Be more selective about filtering - only filter true common web domains
+    true_domains = [".com", ".net", ".org", ".gov", ".edu"]
+    upi_ids = [u for u in upi_ids if not any(u.lower().endswith(ext) for ext in true_domains)]
     existing.upiIds = list(set(existing.upiIds + upi_ids))
     
     # Extract phone numbers
     phones = re.findall(PATTERNS["phone"], text)
+    # Extract anything that looks like a 10-digit number starting with 6-9
+    just_digits = re.findall(r"\b[6-9]\d{9}\b", text)
+    phones.extend(just_digits)
     phones = [re.sub(r"[\s\-]", "", p) for p in phones]  # Clean up
     existing.phoneNumbers = list(set(existing.phoneNumbers + phones))
     
