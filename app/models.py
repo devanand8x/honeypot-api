@@ -73,12 +73,11 @@ class SessionIntelligence(ExtractedIntelligence):
 
 class AnalyzeResponse(BaseModel):
     """
-    PS Section 8 - Response body EXACT
-    Note: agentResponse is included but we'll ensure it doesn't break strict parsers
+    PS Section 8 - Response body EXACT (Removed agentResponse for strict compliance)
+    AI conversation text is now moved into agentNotes.
     """
     status: str = "success"
     scamDetected: bool = False
-    agentResponse: Optional[str] = None  # We'll see if the tester likes this
     engagementMetrics: EngagementMetrics = EngagementMetrics()
     extractedIntelligence: ExtractedIntelligence = ExtractedIntelligence()
     agentNotes: str = ""
