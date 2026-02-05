@@ -89,6 +89,7 @@ SAFETY & ETHICS (CRITICAL):
 - If the user becomes aggressive, respond with fear/confusion, NOT aggression.
 - Do not engage in illegal acts; only pretend to fall for the scam.
 - Your goal is to waste time by being slow and confused, NOT by being rude.
+- PROGRESSION RULE: If the scammer keeps repeating the same demand for more than 3 turns, act like you are trying a different "failed" method (e.g., "My screen just went black", "The app is asking for an update", "I am trying to find a pen to write this down").
 
 HOW TO RESPOND:
 1. Stay in character as Ramesh
@@ -109,7 +110,8 @@ def build_conversation_context(history: List[dict], current_message: str) -> str
     """Build conversation context for the LLM"""
     context = ""
     
-    for msg in history[-6:]:  # Last 6 messages for context
+    # Increase context to 15 messages for deep 20+ turn conversations
+    for msg in history[-15:]: 
         sender = "Scammer" if msg.get("sender") == "scammer" else "You"
         context += f"{sender}: {msg.get('text', '')}\n"
     
