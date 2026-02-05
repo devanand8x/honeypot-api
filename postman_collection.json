@@ -1,0 +1,115 @@
+{
+    "info": {
+        "_postman_id": "honeypot-test-collection",
+        "name": "HoneyPot Multi-Turn Test",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "1. Turn 1: Initial Scam",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "X-API-Key",
+                        "value": "{{API_KEY}}",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"message\": \"URGENT: Your SBI account is blocked. Call +91-9876543210 immediately.\",\n    \"sessionId\": \"postman-test-123\",\n    \"conversationHistory\": []\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "url": {
+                    "raw": "{{BASE_URL}}/",
+                    "host": [
+                        "{{BASE_URL}}"
+                    ],
+                    "path": [
+                        ""
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "2. Turn 2: Providing Account",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "X-API-Key",
+                        "value": "{{API_KEY}}",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"message\": \"Please send OTP to unblock account 1234 5678 9012\",\n    \"sessionId\": \"postman-test-123\",\n    \"conversationHistory\": [\n        {\"sender\": \"scammer\", \"text\": \"URGENT: Your SBI account is blocked. Call +91-9876543210 immediately.\"}\n    ]\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "url": {
+                    "raw": "{{BASE_URL}}/",
+                    "host": [
+                        "{{BASE_URL}}"
+                    ],
+                    "path": [
+                        ""
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "3. Turn 3: Providing OTP",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "X-API-Key",
+                        "value": "{{API_KEY}}",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"message\": \"Use OTP 472839 immediately.\",\n    \"sessionId\": \"postman-test-123\",\n    \"conversationHistory\": [\n        {\"sender\": \"scammer\", \"text\": \"URGENT: Your SBI account is blocked. Call +91-9876543210 immediately.\"},\n        {\"sender\": \"scammer\", \"text\": \"Please send OTP to unblock account 1234 5678 9012\"}\n    ]\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "url": {
+                    "raw": "{{BASE_URL}}/",
+                    "host": [
+                        "{{BASE_URL}}"
+                    ],
+                    "path": [
+                        ""
+                    ]
+                }
+            },
+            "response": []
+        }
+    ],
+    "variable": [
+        {
+            "key": "BASE_URL",
+            "value": "https://honeypot-api-system.onrender.com"
+        },
+        {
+            "key": "API_KEY",
+            "value": "PASTE_YOUR_API_KEY_HERE"
+        }
+    ]
+}
