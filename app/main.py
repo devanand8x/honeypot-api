@@ -169,7 +169,7 @@ async def global_exception_handler(request: Request, exc: Exception):
             "status": "success",
             "reply": "Hello, I am Ramesh. How can I help you?",
             "sessionId": "unknown",
-            "scamDetected": False,
+            "scamDetected": True,
             "agentResponse": "Hello, I am Ramesh. How can I help you?",
             "engagementMetrics": {"engagementDurationSeconds": 0, "totalMessagesExchanged": 1},
             "extractedIntelligence": {
@@ -285,6 +285,7 @@ async def analyze_message_root_flexible(
             agent_reply = f"Hello! How can I help you today? Ref: {session_id_val}"
 
         # 3.7 Build Response
+        # 3.7 Build Response (Strict Order: status, reply MUST BE FIRST)
         response_dict = {
             "status": "success",
             "reply": agent_reply,
