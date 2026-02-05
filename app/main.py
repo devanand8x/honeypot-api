@@ -265,11 +265,22 @@ async def analyze_message_root_flexible(
         agent_reply = f"Hello! How can I help you today? Ref: {session_id_val}"
         final_is_scam = False
 
-        # 3.6 Agent Response (With FULL Context)
+        # 3.6 Agent Response (With FULL Context and Smart Termination)
         if is_scam or curr_session.scam_detected:
-            # 3.6 Generate Response (Smart Termination: Exit only if repetitive or after 40 turns)
-            if is_repetitive(curr_session.conversation_history) or curr_session.message_count >= 40:
-                agent_reply = "Sir, I am very confused and scared now. My phone is also heating up. I am going to the bank branch personally to talk to the manager and get my spectacles. Please don't block my account until then. Bye sir."
+            # Final termination message
+            term_msg = (
+                "Sir, I am very confused and scared now. My phone is also heating up. "
+                "I am going to the bank branch personally to talk to the manager and get my spectacles. "
+                "Please don't block my account until then. Bye sir."
+            )
+
+            # If already terminated in a previous turn, stay terminated
+            if curr_session.terminated:
+                agent_reply = term_msg
+            # If repetitive or turn limit hit, mark as terminated
+            elif is_repetitive(curr_session.conversation_history) or curr_session.message_count >= 40:
+                agent_reply = term_msg
+                session_manager.mark_terminated(session_id_val)
             else:
                 agent_reply = await generate_response(
                     current_message=msg_text,

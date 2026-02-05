@@ -33,6 +33,7 @@ class Session:
         self.conversation_history = []
         self.last_agent_response = ""
         self.callback_sent = False
+        self.terminated = False
 
     def to_dict(self) -> dict:
         """Convert session to dictionary for storage"""
@@ -46,7 +47,8 @@ class Session:
             "agent_notes": self.agent_notes,
             "conversation_history": self.conversation_history,
             "last_agent_response": self.last_agent_response,
-            "callback_sent": self.callback_sent
+            "callback_sent": self.callback_sent,
+            "terminated": self.terminated
         }
 
     @classmethod
@@ -62,6 +64,7 @@ class Session:
         session.conversation_history = data["conversation_history"]
         session.last_agent_response = data["last_agent_response"]
         session.callback_sent = data["callback_sent"]
+        session.terminated = data.get("terminated", False)
         return session
 
 
@@ -155,6 +158,12 @@ class SessionManager:
         """Mark that callback was sent"""
         if session_id in self._sessions:
             self._sessions[session_id].callback_sent = True
+            self.save_to_disk()
+    
+    def mark_terminated(self, session_id: str):
+        """Mark that session is terminated"""
+        if session_id in self._sessions:
+            self._sessions[session_id].terminated = True
             self.save_to_disk()
     
     def get_engagement_duration(self, session_id: str) -> int:
