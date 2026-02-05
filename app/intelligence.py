@@ -66,21 +66,39 @@ def extract_intelligence(text: str, existing: Optional[ExtractedIntelligence] = 
     text_upper = text.upper()
     text_lower = text.lower()
     
-    # Extract bank accounts
-    potential_accounts = re.findall(PATTERNS["bank_account"], text)
-    if potential_accounts:
-        # If we see a 9-18 digit number, and it doesn't look like a year (20xx)
-        filtered = [a for a in potential_accounts if not a.startswith("20")]
+    # Extract bank accounts (handles spaces/dashes if they form a 9-18 digit number)
+    # First, look for the raw pattern
+    raw_accounts = re.findall(PATTERNS["bank_account"], text)
+    
+    # Second, look for formatted numbers like "1234 5678 9012" or "1234-5678-9012"
+    # We look for groups of 3-4 digits separated by space or dash
+    formatted_matches = re.findall(r"\b(?:\d{3,4}[\s\-]?){3,6}\b", text)
+    for fm in formatted_matches:
+        cleaned = re.sub(r"[\s\-]", "", fm)
+        if 9 <= len(cleaned) <= 18:
+            raw_accounts.append(fm) # Keep original for display or cleaned for consistency
+            
+    if raw_accounts:
+        # Filter and normalize
+        filtered = []
+        for a in raw_accounts:
+            cleaned = re.sub(r"[\s\-]", "", a)
+            if not cleaned.startswith("20") or len(cleaned) > 4:
+                filtered.append(cleaned)
         existing.bankAccounts = list(set(existing.bankAccounts + filtered))
     
     # Extract UPI IDs
     upi_ids = re.findall(PATTERNS["upi_id"], text, re.IGNORECASE)
-    true_domains = [".com", ".net", ".org", ".gov", ".edu"]
-    upi_ids = [u for u in upi_ids if not any(u.lower().endswith(ext) for ext in true_domains)]
+    true_domains = [".com", ".net", ".org", ".gov", ".edu", ".in", ".co"]
+    # Improved UPI filtering: only keep if it looks like a provider part (common VPA suffixes)
+    common_vpa_suffixes = ["@ybl", "@paytm", "@oksbi", "@okaxis", "@okicici", "@ibl", "@apl", "@axl"]
+    upi_ids = [u for u in upi_ids if not any(u.lower().endswith(ext) for ext in true_domains) or any(u.lower().endswith(s) for s in common_vpa_suffixes)]
     existing.upiIds = list(set(existing.upiIds + upi_ids))
     
     # Extract phone numbers
-    phones = re.findall(PATTERNS["phone"], text)
+    # Support more formats including +91 98765 43210
+    raw_phones = re.findall(r"(?:\+91[\-\s]?)?[6-9]\d{1,4}[\-\s]?\d{1,4}[\-\s]?\d{1,4}\b", text)
+    phones = raw_phones
     # Also catch any 10 digit number starting with 6-9
     just_digits = re.findall(r"\b[6-9]\d{9}\b", text)
     phones.extend(just_digits)
