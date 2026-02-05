@@ -100,11 +100,11 @@ HOW TO RESPOND:
    - If they sent an account number, do not ask "Which account?". Instead, ask if it is safe.
 4. Ask for more details and clarification in a worried tone.
 5. Use simple English only
-6. Keep response strictly to 1 or 2 short sentences (MAX 25 WORDS)
+6. Keep response strictly to ONE short sentence (MAX 15 WORDS).
 7. Sound genuine and concerned.
 8. NEVER repeat exactly what you said in the previous 5 turns.
-9. If the scammer repeats themselves, act like something "new" failed (e.g., "The phone is heating up", "I am looking for my spectacles", "My grandson just called me").
-10. KEEP IT SHORT - MAX 20-25 WORDS.
+9. If the scammer repeats themselves, act like something "new" failed (e.g., "Phone is heating", "Looking for spectacles", "Grandson called").
+10. BE EXTREMELY BRIEF.
 
 You are confused and need help understanding what to do."""
 
@@ -113,8 +113,8 @@ def build_conversation_context(history: List[dict], current_message: str) -> str
     """Build conversation context for the LLM"""
     context = ""
     
-    # Increase context to 15 messages for deep 20+ turn conversations
-    for msg in history[-15:]: 
+    # Context window for deep conversations
+    for msg in history[-10:]: 
         sender = "Scammer" if msg.get("sender") == "scammer" else "You"
         context += f"{sender}: {msg.get('text', '')}\n"
     
@@ -143,45 +143,34 @@ async def generate_response(
     # Try NVIDIA first (Primary)
     nvidia_client = get_nvidia_client()
     if nvidia_client:
-        # Try up to 2 times with different models if 503 occurs
-        models_to_try = ["meta/llama-3.1-8b-instruct", "meta/llama3-8b-instruct"]
+        # Prioritize meta/llama3-8b-instruct (often faster than 3.1)
+        models_to_try = ["meta/llama3-8b-instruct", "meta/llama-3.1-8b-instruct"]
         for model_name in models_to_try:
             try:
-                logger.info(f"Attempting Async NVIDIA response with {model_name}...")
+                logger.info(f"Attempting Hyper-Fast NVIDIA with {model_name}...")
                 import asyncio
                 response = await asyncio.wait_for(
                     nvidia_client.chat.completions.create(
                         model=model_name,
                         messages=[{"role": "system", "content": SYSTEM_PROMPT}, 
                                  {"role": "user", "content": f"CONVERSATION SO FAR:\n{conversation_context}\n\nGenerate your response as Ramesh."}],
-                        temperature=0.7,
-                        max_tokens=80,
+                        temperature=0.6,
+                        max_tokens=60,
                     ),
-                    timeout=7.0 # Reduced to 7s to stay under total 25s threshold
+                    timeout=5.0 # Strict 5s timeout for speed
                 )
                 if response.choices[0].message.content:
-                    logger.info(f"NVIDIA success with {model_name}")
                     return response.choices[0].message.content.strip()
-            except asyncio.TimeoutError:
-                logger.warning(f"NVIDIA {model_name} timed out.")
+            except Exception:
                 continue
-            except Exception as nv_e:
-                # If it's a 503, try the next model
-                if "503" in str(nv_e):
-                    logger.warning(f"NVIDIA {model_name} 503'd, trying next...")
-                    continue
-                logger.warning(f"NVIDIA Async failed - Error Type: {type(nv_e).__name__}, Message: {str(nv_e)}")
-                break # Non-503 error, move to Gemini
 
     # Fallback to Gemini
     client = get_gemini_client()
     if client:
         try:
-            logger.info("Attempting Async Gemini (via ThreadPool fallback if necessary)...")
+            logger.info("Attempting Fast Gemini fallback...")
             import asyncio
             from functools import partial
-            
-            # Use current event loop
             loop = asyncio.get_event_loop()
             full_prompt = f"{SYSTEM_PROMPT}\n\nCONVERSATION SO FAR:\n{conversation_context}\n\nGenerate your response as Ramesh."
             
@@ -191,13 +180,13 @@ async def generate_response(
                     model="gemini-2.0-flash",
                     contents=full_prompt
                 )),
-                timeout=7.0 # Reduced to 7s
+                timeout=5.0 # Strict 5s timeout
             )
             
             if response and response.text:
                 return response.text.strip()
-        except Exception as e:
-            logger.error(f"Gemini Async fallback error: {e}")
+        except Exception:
+            pass
 
     return get_fallback_response(current_message)
 
