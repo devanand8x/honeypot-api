@@ -77,19 +77,16 @@ def should_send_callback(
     """
     Determine if callback should be sent
     
-    Conditions:
+    Conditions updated for Multi-Turn updates:
     1. Scam was detected
     2. At least 1 message processed
-    3. Callback not already sent for this session
+    3. We send an update every turn to keep scoreboard fresh
     """
-    
-    if callback_already_sent:
-        return False
     
     if not scam_detected:
         return False
     
-    # Send callback immediately when scam is detected (changed from 3 to 1)
+    # Send callback on every turn where scam is active to update metrics/intelligence
     if message_count >= 1:
         return True
     

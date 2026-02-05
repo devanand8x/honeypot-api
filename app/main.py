@@ -212,8 +212,8 @@ async def analyze_message_root_flexible(
             body = {}
         logger.info(f"DIAGNOSTIC Parsed body: {body}")
 
-        # 3.1 Identify Session
-        session_id_val = body.get("sessionId") or body.get("session_id") or f"auto-{int(time.time())}"
+        # 3.1 Identify Session (Robust against casing)
+        session_id_val = body.get("sessionId") or body.get("sessionID") or body.get("session_id") or f"auto-{int(time.time())}"
         curr_session = session_manager.get_or_create(session_id_val)
         session_manager.update_activity(session_id_val)
         
