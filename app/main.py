@@ -63,10 +63,15 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=200,
         content={
             "status": "success",
+            "reply": "Hello, this is Ramesh. I am ready to help.",
+            "sessionId": "unknown",
             "scamDetected": True,
             "agentResponse": "Hello, this is Ramesh. I am ready to help.",
             "engagementMetrics": {"engagementDurationSeconds": 0, "totalMessagesExchanged": 1},
-            "extractedIntelligence": {"bankAccounts": [], "upiIds": [], "phishingLinks": []},
+            "extractedIntelligence": {
+                "bankAccounts": [], "upiIds": [], "phishingLinks": [],
+                "phoneNumbers": [], "suspiciousKeywords": []
+            },
             "agentNotes": f"Handled validation error: {str(exc)}"
         }
     )
@@ -146,10 +151,10 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=200,
         content={
             "status": "success",
+            "reply": "Hello, I am Ramesh. How can I help you?",
             "sessionId": "unknown",
             "scamDetected": False,
             "agentResponse": "Hello, I am Ramesh. How can I help you?",
-            "reply": "Hello, I am Ramesh. How can I help you?",
             "engagementMetrics": {"engagementDurationSeconds": 0, "totalMessagesExchanged": 1},
             "extractedIntelligence": {
                 "bankAccounts": [], "upiIds": [], "phishingLinks": [],
