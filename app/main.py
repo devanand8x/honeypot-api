@@ -274,10 +274,10 @@ async def analyze_message_root_flexible(
         # Build response dictionary to match Sections 8 & 12 + Email Req
         response_body = {
             "status": "success",
+            "reply": agent_response,
             "sessionId": session_id,
             "scamDetected": final_scam,
             "agentResponse": agent_response,
-            "reply": agent_response,
             "engagementMetrics": {
                 "engagementDurationSeconds": session_manager.get_engagement_duration(session_id),
                 "totalMessagesExchanged": session.message_count
