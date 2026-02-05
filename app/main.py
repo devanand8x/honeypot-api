@@ -264,6 +264,9 @@ async def analyze_message_root_flexible(
                 scam_type="general"
             )
             session_manager.set_last_response(session_id, agent_response)
+        else:
+            # Fallback for non-scam or testing
+            agent_response = f"Hello! How can I help you today? Reference: {session_id}"
         
         # Combine agent response into notes OR keep separate based on restored model
         final_notes = notes
