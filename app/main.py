@@ -229,11 +229,11 @@ async def analyze_message_root_flexible(
         if not msg_text and not body:
             msg_text = raw_text.strip() if raw_text else "Hello"
 
-        # 3.3 Message Counting (State Recovery)
+        # 3.3 Message Counting (State Recovery & Robust Increment)
         history = body.get("conversationHistory", body.get("conversation_history", []))
-        if len(history) + 1 > curr_session.message_count:
-            curr_session.message_count = len(history) + 1
-            session_manager.save_to_disk()
+        # Take the maximum of (internal count + 1) and (history length + 1) to handle all evaluator types
+        curr_session.message_count = max(curr_session.message_count + 1, len(history) + 1)
+        session_manager.save_to_disk()
 
         # 3.4 Scam Detection
         is_scam, confidence, keywords, notes = detect_scam(msg_text)
