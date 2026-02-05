@@ -156,3 +156,27 @@ def intelligence_to_dict(intel: ExtractedIntelligence) -> dict:
         "phoneNumbers": intel.phoneNumbers,
         "suspiciousKeywords": intel.suspiciousKeywords
     }
+
+def is_repetitive(history: list, threshold: int = 3) -> bool:
+    """
+    Detect if the scammer is repeating themselves.
+    Returns True if the last 'threshold' messages from scammer are highly similar.
+    """
+    scammer_msgs = [m.get("text", "").lower() for m in history if m.get("sender") == "scammer"]
+    if len(scammer_msgs) < threshold:
+        return False
+    
+    last_n = scammer_msgs[-threshold:]
+    
+    def get_sim(s1, s2):
+        w1, w2 = set(s1.split()), set(s2.split())
+        if not w1 or not w2: return 0
+        return len(w1 & w2) / max(len(w1), len(w2))
+
+    all_similar = True
+    for i in range(len(last_n) - 1):
+        if get_sim(last_n[i], last_n[i+1]) < 0.7:
+            all_similar = False
+            break
+            
+    return all_similar

@@ -29,7 +29,7 @@ from app.models import (
 )
 from app.scam_detector import detect_scam, analyze_conversation_history
 from app.agent import generate_response
-from app.intelligence import extract_intelligence, merge_intelligence, intelligence_to_dict
+from app.intelligence import extract_intelligence, merge_intelligence, intelligence_to_dict, is_repetitive
 from app.session import session_manager
 from app.callback import send_guvi_callback, should_send_callback
 
@@ -267,9 +267,9 @@ async def analyze_message_root_flexible(
 
         # 3.6 Agent Response (With FULL Context)
         if is_scam or curr_session.scam_detected:
-            # 3.6 Generate Response (With 20-turn Termination Rule)
-            if curr_session.message_count >= 20:
-                agent_reply = "Sir, I am very confused and scared now. I am going to the bank branch personally to talk to the manager. Please don't block my account until I reach there in 30 minutes. Bye sir."
+            # 3.6 Generate Response (Smart Termination: Exit only if repetitive or after 40 turns)
+            if is_repetitive(curr_session.conversation_history) or curr_session.message_count >= 40:
+                agent_reply = "Sir, I am very confused and scared now. My phone is also heating up. I am going to the bank branch personally to talk to the manager and get my spectacles. Please don't block my account until then. Bye sir."
             else:
                 agent_reply = await generate_response(
                     current_message=msg_text,
