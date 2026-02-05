@@ -267,12 +267,15 @@ async def analyze_message_root_flexible(
 
         # 3.6 Agent Response (With FULL Context)
         if is_scam or curr_session.scam_detected:
-            # Use current combined session history for full context
-            agent_reply = await generate_response(
-                current_message=msg_text,
-                conversation_history=curr_session.conversation_history,
-                scam_type="general"
-            )
+            # 3.6 Generate Response (With 20-turn Termination Rule)
+            if curr_session.message_count >= 20:
+                agent_reply = "Sir, I am very confused and scared now. I am going to the bank branch personally to talk to the manager. Please don't block my account until I reach there in 30 minutes. Bye sir."
+            else:
+                agent_reply = await generate_response(
+                    current_message=msg_text,
+                    conversation_history=curr_session.conversation_history,
+                    scam_type="general"
+                )
             # Record agent response in session history
             curr_session.conversation_history.append({"sender": "agent", "text": agent_reply})
             session_manager.set_last_response(session_id_val, agent_reply)
