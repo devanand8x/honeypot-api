@@ -149,6 +149,7 @@ async def global_exception_handler(request: Request, exc: Exception):
             "sessionId": "unknown",
             "scamDetected": False,
             "agentResponse": "Hello, I am Ramesh. How can I help you?",
+            "reply": "Hello, I am Ramesh. How can I help you?",
             "engagementMetrics": {"engagementDurationSeconds": 0, "totalMessagesExchanged": 1},
             "extractedIntelligence": {
                 "bankAccounts": [], "upiIds": [], "phishingLinks": [],
@@ -267,12 +268,13 @@ async def analyze_message_root_flexible(
         # Combine agent response into notes OR keep separate based on restored model
         final_notes = notes
         
-        # Build response dictionary to match Sections 8 & 12
+        # Build response dictionary to match Sections 8 & 12 + Email Req
         response_body = {
             "status": "success",
             "sessionId": session_id,
             "scamDetected": final_scam,
             "agentResponse": agent_response,
+            "reply": agent_response,
             "engagementMetrics": {
                 "engagementDurationSeconds": session_manager.get_engagement_duration(session_id),
                 "totalMessagesExchanged": session.message_count
@@ -314,6 +316,7 @@ async def analyze_message_root_flexible(
             "sessionId": "unknown",
             "scamDetected": False if is_test else True,
             "agentResponse": "Hello, this is Ramesh. How can I help you?",
+            "reply": "Hello, this is Ramesh. How can I help you?",
             "engagementMetrics": {"engagementDurationSeconds": 0, "totalMessagesExchanged": 1},
             "extractedIntelligence": {
                 "bankAccounts": [], "upiIds": [], "phishingLinks": [],

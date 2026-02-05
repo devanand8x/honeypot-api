@@ -72,11 +72,13 @@ class AnalyzeResponse(BaseModel):
     """
     PS Section 8 - Response body (Restored agentResponse as it is logically required)
     Added sessionId for better traceability as per Section 12.
+    Added 'reply' field as specifically requested by GUVI Evaluation email.
     """
     status: str = "success"
     sessionId: str = ""
     scamDetected: bool = False
     agentResponse: Optional[str] = None
+    reply: Optional[str] = None
     engagementMetrics: EngagementMetrics = EngagementMetrics()
     extractedIntelligence: ExtractedIntelligence = ExtractedIntelligence()
     agentNotes: str = ""

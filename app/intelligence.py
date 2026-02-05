@@ -26,7 +26,10 @@ PATTERNS = {
     "url": r"https?://[^\s<>\"{}|\\^`\[\]]+",
     
     # Email
-    "email": r"\b[\w\.\-]+@[\w\.\-]+\.[a-zA-Z]{2,}\b"
+    "email": r"\b[\w\.\-]+@[\w\.\-]+\.[a-zA-Z]{2,}\b",
+    
+    # Verification Code: 6 digits (for Social Engineering/OTPs)
+    "verification_code": r"\b\d{6}\b"
 }
 
 # Keywords that indicate suspicious intent
@@ -100,6 +103,12 @@ def extract_intelligence(text: str, existing: Optional[ExtractedIntelligence] = 
     
     # Extract suspicious keywords found in text
     found_keywords = [kw for kw in SUSPICIOUS_KEYWORDS if kw in text_lower]
+    
+    # Also include 6-digit verification codes as suspicious keywords
+    codes = re.findall(PATTERNS["verification_code"], text)
+    if codes:
+        found_keywords.extend([f"Code: {c}" for c in codes])
+        
     existing.suspiciousKeywords = list(set(existing.suspiciousKeywords + found_keywords))
     
     return existing
