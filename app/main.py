@@ -143,18 +143,7 @@ async def health_check():
     return HealthResponse(status="healthy", version="1.0.0")
 
 
-@app.get("/")
-async def root():
-    """Root endpoint to prevent hibernation and provide basic info"""
-    return {
-        "status": "success",
-        "message": "Agentic Honey-Pot API is Live",
-        "version": "1.0.0",
-        "endpoints": {
-            "analyze": "/analyze (POST)",
-            "health": "/health (GET)"
-        }
-    }
+# Health checks and roots are handled by the flexible handler below.
 
 
 @app.exception_handler(Exception)
@@ -285,7 +274,8 @@ async def analyze_message_root_flexible(
             agent_reply = f"Hello! How can I help you today? Ref: {session_id_val}"
 
         # 3.7 Build Response
-        # 3.7 Build Response (Strict Order: status, reply MUST BE FIRST)
+        # 3.7 Build Response (Strict Order Required by GUVI Evaluator)
+        # reply and status MUST BE NEAR THE TOP
         response_dict = {
             "status": "success",
             "reply": agent_reply,
