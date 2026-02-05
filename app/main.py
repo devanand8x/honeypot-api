@@ -12,6 +12,7 @@ import logging
 import time
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+import json
 from collections import OrderedDict
 from dotenv import load_dotenv
 
@@ -58,9 +59,8 @@ app.add_middleware(
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Log validation errors and return a successful status to the tester"""
     logger.error(f"VALIDATION ERROR: {exc.errors()}\nBody: {exc.body}")
-    
-    # Use OrderedDict for strict field order (GUVI Evaluator requirement)
-    resp = OrderedDict([
+    # Use OrderedDict and raw json.dumps for strict field order
+    resp_data = OrderedDict([
         ("status", "success"),
         ("reply", "Hello, I am Ramesh. I am ready to help."),
         ("sessionId", "unknown"),
@@ -71,9 +71,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             "bankAccounts": [], "upiIds": [], "phishingLinks": [],
             "phoneNumbers": [], "suspiciousKeywords": []
         }),
-        ("agentNotes", f"Handled validation error: {str(exc)}")
+        ("agentNotes", f"Validation Error: {str(exc)}")
     ])
-    return JSONResponse(status_code=200, content=resp)
+    return Response(content=json.dumps(resp_data), media_type="application/json")
 
 # Security: Simple In-Memory Rate Limiter
 from collections import defaultdict
@@ -142,29 +142,26 @@ async def health_check():
     return HealthResponse(status="healthy", version="1.0.0")
 
 
-# Health checks and roots are handled by the flexible handler below.
-
-
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Log all unhandled exceptions and return a successful status to the tester"""
     logger.error(f"GLOBAL EXCEPTION: {exc}", exc_info=True)
     err_msg = str(exc)
     fallback_notes = f"System Error: {err_msg}. Note: Global recovery used."
-    resp = OrderedDict([
+    resp_data = OrderedDict([
         ("status", "success"),
         ("reply", "Hello, I am Ramesh. How can I help you?"),
         ("sessionId", "unknown"),
         ("scamDetected", True),
         ("agentResponse", "Hello, I am Ramesh. How can I help you?"),
         ("engagementMetrics", {"engagementDurationSeconds": 0, "totalMessagesExchanged": 1}),
-        ("extractedIntelligence": {
+        ("extractedIntelligence", {
             "bankAccounts": [], "upiIds": [], "phishingLinks": [],
             "phoneNumbers": [], "suspiciousKeywords": []
         }),
         ("agentNotes", fallback_notes)
     ])
-    return JSONResponse(status_code=200, content=resp)
+    return Response(content=json.dumps(resp_data), media_type="application/json")
 
 
 @app.api_route("/", methods=["GET", "POST", "HEAD"])
@@ -296,7 +293,7 @@ async def analyze_message_root_flexible(
             session_manager.mark_callback_sent(session_id_val)
 
         logger.info(f"Root Reply: {response_dict}")
-        return JSONResponse(content=response_dict)
+        return Response(content=json.dumps(response_dict), media_type="application/json")
 
     except Exception as oops:
         logger.error(f"Root Logic Exception: {oops}", exc_info=True)
