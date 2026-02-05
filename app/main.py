@@ -10,10 +10,12 @@ Endpoints:
 import os
 import logging
 import time
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
 import json
 from collections import OrderedDict
+from fastapi import FastAPI, HTTPException, Header, BackgroundTasks, Request, Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
@@ -73,7 +75,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         }),
         ("agentNotes", f"Schema mismatch: {str(exc.errors()[0].get('msg'))}")
     ])
-    return Response(content=json.dumps(resp_data), media_type="application/json")
+    return Response(content=json.dumps(resp_data, indent=4), media_type="application/json")
 
 # Security: Simple In-Memory Rate Limiter
 from collections import defaultdict
@@ -160,7 +162,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         }),
         ("agentNotes", f"System Recovery: {str(exc)}")
     ])
-    return Response(content=json.dumps(resp_data), media_type="application/json")
+    return Response(content=json.dumps(resp_data, indent=4), media_type="application/json")
 
 
 @app.api_route("/", methods=["GET", "POST", "HEAD"])
@@ -291,8 +293,7 @@ async def analyze_message_root_flexible(
             )
             session_manager.mark_callback_sent(session_id_val)
 
-        logger.info(f"Root Reply: {response_dict}")
-        return Response(content=json.dumps(response_dict), media_type="application/json")
+        return Response(content=json.dumps(response_dict, indent=4), media_type="application/json")
 
     except Exception as oops:
         logger.error(f"Root Logic Exception: {oops}", exc_info=True)
