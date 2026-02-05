@@ -83,7 +83,11 @@ def extract_intelligence(text: str, existing: Optional[ExtractedIntelligence] = 
         filtered = []
         for a in raw_accounts:
             cleaned = re.sub(r"[\s\-]", "", a)
-            if not cleaned.startswith("20") or len(cleaned) > 4:
+            # Validation: 
+            # 1. Not a year (starting with 20)
+            # 2. Not a typical Indian Mobile Number (10 digits starting with 6-9)
+            is_mobile = len(cleaned) == 10 and cleaned[0] in "6789"
+            if (not cleaned.startswith("20") or len(cleaned) > 4) and not is_mobile:
                 filtered.append(cleaned)
         existing.bankAccounts = list(set(existing.bankAccounts + filtered))
     
