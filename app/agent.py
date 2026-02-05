@@ -148,7 +148,7 @@ HOW TO RESPOND:
    - If they sent an account number, do not ask "Which account?". Instead, ask if it is safe.
 4. Ask for more details and clarification in a worried tone.
 5. Use simple English only
-6. Keep response to 1-3 sentences
+6. Keep response strictly to 1 or 2 short sentences
 7. Sound genuine and concerned
 
 You are confused and need help understanding what to do."""

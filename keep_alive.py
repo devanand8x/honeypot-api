@@ -6,28 +6,30 @@ from datetime import datetime
 URL = "https://honeypot-api-system.onrender.com/health"
 
 def keep_alive():
-    print("🚀 binary_geeks Keep-Alive Script is Running!")
+    print("🚀 binary_geeks Robust Keep-Alive Script is Running!")
     print(f"Target: {URL}")
-    print("Sending pings every 60 seconds to prevent Render from sleeping...")
+    print("Pinging root (/) and /health every 60 seconds...")
     print("-" * 50)
 
-    while True:
-        try:
-            # Send a simple GET request to the health endpoint
-            response = requests.get(URL, timeout=10)
-            
-            # Log the result with a timestamp
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            if response.status_code == 200:
-                print(f"[{timestamp}] ✅ Ping Successful! Status: 200 OK")
-            else:
-                print(f"[{timestamp}] ⚠️ Ping returned status: {response.status_code}")
-                
-        except requests.exceptions.RequestException as e:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            print(f"[{timestamp}] ❌ Network error: {e}")
+    endpoints = [URL, URL.replace("/health", "/")]
 
-        # Wait for 60 seconds before the next ping
+    while True:
+        for target in endpoints:
+            try:
+                # Increased timeout to 20s to handle slow 'spin-ups'
+                response = requests.get(target, timeout=20)
+                
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                if response.status_code == 200:
+                    print(f"[{timestamp}] ✅ Success: {target.split('/')[-1] if target.endswith('health') else 'root'}")
+                else:
+                    print(f"[{timestamp}] ⚠️ Status {response.status_code}: {target}")
+                    
+            except requests.exceptions.RequestException as e:
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                print(f"[{timestamp}] ❌ Timeout/Error for {target}")
+
+        # Wait for 60 seconds before the next round of pings
         time.sleep(60)
 
 if __name__ == "__main__":
