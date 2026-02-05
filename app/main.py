@@ -212,8 +212,9 @@ async def analyze_message_root_flexible(
             body = {}
         logger.info(f"DIAGNOSTIC Parsed body: {body}")
 
-        # 3.1 Identify Session (Robust against casing)
-        session_id_val = body.get("sessionId") or body.get("sessionID") or body.get("session_id") or f"auto-{int(time.time())}"
+        # 3.1 Identify Session (Robust against casing + IP fallback for stateless evaluators)
+        client_ip = request.client.host if request.client else "unknown"
+        session_id_val = body.get("sessionId") or body.get("sessionID") or body.get("session_id") or f"user-{client_ip}"
         curr_session = session_manager.get_or_create(session_id_val)
         session_manager.update_activity(session_id_val)
         
@@ -229,46 +230,55 @@ async def analyze_message_root_flexible(
         if not msg_text and not body:
             msg_text = raw_text.strip() if raw_text else "Hello"
 
-        # 3.3 Message Counting (State Recovery & Robust Increment)
+        # 3.3 State Synchronization (Merge Request History with Local Session History)
         history = body.get("conversationHistory", body.get("conversation_history", []))
-        # Take the maximum of (internal count + 1) and (history length + 1) to handle all evaluator types
+        if history:
+            # Sync local history with request history if request provides it
+            curr_session.conversation_history = history
+        
+        # Add current message to history if not already there
+        if not any(h.get("text") == msg_text for h in curr_session.conversation_history[-1:]):
+            curr_session.conversation_history.append({"sender": "scammer", "text": msg_text})
+
+        # 3.4 Message Counting (Robust Increment)
         curr_session.message_count = max(curr_session.message_count + 1, len(history) + 1)
         session_manager.save_to_disk()
 
-        # 3.4 Scam Detection
+        # 3.5 Scam Detection & Intelligence Extraction (Iterative)
         is_scam, confidence, keywords, notes = detect_scam(msg_text)
-        h_score, h_keywords = analyze_conversation_history([
-            {"sender": h.get("sender", "scammer") if isinstance(h, dict) else "scammer",
-             "text": h.get("text", str(h)) if isinstance(h, dict) else str(h)}
-            for h in history
-        ] if history else [])
         
-        final_is_scam = is_scam or h_score > 0.3 or curr_session.scam_detected
-        session_manager.set_scam_detected(session_id_val, final_is_scam)
-        
-        # 3.5 Intelligence Extraction (Iterative)
+        # Intelligence extraction from CURRENT message
         intel = extract_intelligence(msg_text, curr_session.intelligence)
+        
+        # Intelligence extraction from HISTORY (if not already processed)
         if history:
             for h in history:
-                h_txt = h.get("text", "") if isinstance(h, dict) else str(h)
-                if h.get("sender", "scammer") == "scammer" and h_txt:
-                    intel = extract_intelligence(h_txt, intel)
+                 h_txt = h.get("text", "") if isinstance(h, dict) else str(h)
+                 h_sender = h.get("sender", "scammer").lower() if isinstance(h, dict) else "scammer"
+                 if h_sender == "scammer" and h_txt:
+                     intel = extract_intelligence(h_txt, intel)
         
         session_manager.update_intelligence(session_id_val, intel)
         session_manager.update_notes(session_id_val, notes)
 
-        # 3.6 Agent Response
-        if final_is_scam:
+        # Initialize agent_reply and final_is_scam for all paths
+        agent_reply = f"Hello! How can I help you today? Ref: {session_id_val}"
+        final_is_scam = False
+
+        # 3.6 Agent Response (With FULL Context)
+        if is_scam or curr_session.scam_detected:
+            # Use current combined session history for full context
             agent_reply = await generate_response(
                 current_message=msg_text,
-                conversation_history=[{"sender": "scammer", "text": msg_text}],
+                conversation_history=curr_session.conversation_history,
                 scam_type="general"
             )
+            # Record agent response in session history
+            curr_session.conversation_history.append({"sender": "agent", "text": agent_reply})
             session_manager.set_last_response(session_id_val, agent_reply)
-        else:
-            agent_reply = f"Hello! How can I help you today? Ref: {session_id_val}"
-
-        # 3.7 Build Response
+            session_manager.set_scam_detected(session_id_val, True)
+            final_is_scam = True
+        
         # 3.7 Build Response (Strict Order Required by GUVI Evaluator)
         # Using OrderedDict to guarantee field order in JSON output
         response_dict = OrderedDict([
