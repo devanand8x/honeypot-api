@@ -154,8 +154,14 @@ async def generate_response(
             )
             if response.choices[0].message.content:
                 return response.choices[0].message.content.strip()
+        except asyncio.TimeoutError:
+            logger.warning("NVIDIA Async timed out after 12 seconds.")
         except Exception as nv_e:
-            logger.warning(f"NVIDIA Async failed or timed out: {nv_e}")
+            import traceback
+            logger.warning(f"NVIDIA Async failed - Error Type: {type(nv_e).__name__}, Message: {str(nv_e)}")
+            # Log first few characters of key for verification (safe since it's in logs)
+            key_preview = os.getenv("NVIDIA_API_KEY", "MISSING")[:10]
+            logger.debug(f"NVIDIA API Key Preview: {key_preview}...")
 
     # Fallback to Gemini
     client = get_gemini_client()
