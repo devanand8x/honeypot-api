@@ -143,6 +143,20 @@ async def health_check():
     return HealthResponse(status="healthy", version="1.0.0")
 
 
+@app.get("/")
+async def root():
+    """Root endpoint to prevent hibernation and provide basic info"""
+    return {
+        "status": "success",
+        "message": "Agentic Honey-Pot API is Live",
+        "version": "1.0.0",
+        "endpoints": {
+            "analyze": "/analyze (POST)",
+            "health": "/health (GET)"
+        }
+    }
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Log all unhandled exceptions and return a successful status to the tester"""
