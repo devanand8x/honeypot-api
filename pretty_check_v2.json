@@ -1,1 +1,30 @@
-﻿{"status":"success","reply":"Sir, I dont understand why my SBI account is blocked. Are you from SBI bank sir?","sessionId":"test-pretty-print","scamDetected":true,"agentResponse":"Sir, I dont understand why my SBI account is blocked. Are you from SBI bank sir?","engagementMetrics":{"engagementDurationSeconds":0,"totalMessagesExchanged":1},"extractedIntelligence":{"bankAccounts":[],"upiIds":[],"phishingLinks":[],"phoneNumbers":[],"suspiciousKeywords":["urgent","blocked","block"]},"agentNotes":"Scammer used urgency tactics, threatening language, authority impersonation, pattern: account_threat"}
+﻿{
+    "status": "success",
+    "reply": "Sir please wait, let me ask my son. He handles all money matters.",
+    "sessionId": "1fc994e9-f4c5-47ee-8806-90aeb969928f",
+    "scamDetected": true,
+    "agentResponse": "Sir please wait, let me ask my son. He handles all money matters.",
+    "engagementMetrics": {
+        "engagementDurationSeconds": 0,
+        "totalMessagesExchanged": 1
+    },
+    "extractedIntelligence": {
+        "bankAccounts": [],
+        "upiIds": [
+            "upi@ybl"
+        ],
+        "phishingLinks": [
+            "http://link.php"
+        ],
+        "phoneNumbers": [],
+        "suspiciousKeywords": [
+            "blocked",
+            "upi",
+            "verify",
+            "bank account",
+            "block",
+            "immediately"
+        ]
+    },
+    "agentNotes": "Scammer used urgency tactics, threatening language, financial terms, authority impersonation, information request, pattern: account_threat"
+}
