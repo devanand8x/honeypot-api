@@ -253,10 +253,10 @@ async def analyze_message_root_flexible(
         # Get conversation history
         history = body.get("conversationHistory", body.get("conversation_history", []))
         
-        # Process the request directly (inline processing)
-        session = session_manager.get_or_create(session_id)
-        session_manager.update_activity(session_id)
-        session_manager.increment_message_count(session_id)
+        # 2.5 Robust Message Count - Sync with history if session was lost/restarted
+        if len(history) + 1 > session.message_count:
+            session.message_count = len(history) + 1
+            session_manager.save_to_disk()
         
         # Detect scam
         is_scam, confidence, keywords, notes = detect_scam(message_text)
@@ -269,8 +269,16 @@ async def analyze_message_root_flexible(
         final_scam = is_scam or history_score > 0.3 or session.scam_detected
         session_manager.set_scam_detected(session_id, final_scam)
         
-        # Extract intelligence
+        # Extract intelligence from current message
         intelligence = extract_intelligence(message_text, session.intelligence)
+        
+        # ALSO extract from history (Safety/Resiliency in case session state was lost)
+        if history:
+            for h in history:
+                h_text = h.get("text", "") if isinstance(h, dict) else str(h)
+                if h.get("sender", "scammer") == "scammer" and h_text:
+                    intelligence = extract_intelligence(h_text, intelligence)
+                    
         session_manager.update_intelligence(session_id, intelligence)
         session_manager.update_notes(session_id, notes)
         

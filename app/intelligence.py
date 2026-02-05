@@ -66,33 +66,33 @@ def extract_intelligence(text: str, existing: Optional[ExtractedIntelligence] = 
     text_upper = text.upper()
     text_lower = text.lower()
     
-    # Extract bank accounts (relaxed context)
-    account_context_keywords = ["account", "a/c", "khata", "bank", "card", "number", "no."]
+    # Extract bank accounts
     potential_accounts = re.findall(PATTERNS["bank_account"], text)
     if potential_accounts:
-        if any(kw in text_lower for kw in account_context_keywords):
-            # Context found, add all
-            filtered = [a for a in potential_accounts if len(a) >= 9 and not a.startswith("20")]
-            existing.bankAccounts = list(set(existing.bankAccounts + filtered))
-        else:
-            # No context, only add if significantly long (12+ digits like Aadhaar or long accounts)
-            filtered = [a for a in potential_accounts if len(a) >= 12]
-            existing.bankAccounts = list(set(existing.bankAccounts + filtered))
+        # If we see a 9-18 digit number, and it doesn't look like a year (20xx)
+        filtered = [a for a in potential_accounts if not a.startswith("20")]
+        existing.bankAccounts = list(set(existing.bankAccounts + filtered))
     
-    # Extract UPI IDs (Broaden to catch more providers like @sbi, @ybl, @paytm)
+    # Extract UPI IDs
     upi_ids = re.findall(PATTERNS["upi_id"], text, re.IGNORECASE)
-    # Be more selective about filtering - only filter true common web domains
     true_domains = [".com", ".net", ".org", ".gov", ".edu"]
     upi_ids = [u for u in upi_ids if not any(u.lower().endswith(ext) for ext in true_domains)]
     existing.upiIds = list(set(existing.upiIds + upi_ids))
     
     # Extract phone numbers
     phones = re.findall(PATTERNS["phone"], text)
-    # Extract anything that looks like a 10-digit number starting with 6-9
+    # Also catch any 10 digit number starting with 6-9
     just_digits = re.findall(r"\b[6-9]\d{9}\b", text)
     phones.extend(just_digits)
-    phones = [re.sub(r"[\s\-]", "", p) for p in phones]  # Clean up
-    existing.phoneNumbers = list(set(existing.phoneNumbers + phones))
+    # Clean up phone numbers (remove dashes, spaces, +91)
+    cleaned_phones = []
+    for p in phones:
+        cleaned = re.sub(r"[\s\-\+]", "", p)
+        if cleaned.startswith("91") and len(cleaned) == 12:
+            cleaned = cleaned[2:]
+        if len(cleaned) == 10:
+            cleaned_phones.append(cleaned)
+    existing.phoneNumbers = list(set(existing.phoneNumbers + cleaned_phones))
     
     # Extract URLs (potential phishing links)
     urls = re.findall(PATTERNS["url"], text)
