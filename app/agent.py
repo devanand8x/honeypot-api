@@ -153,7 +153,7 @@ async def generate_response(
                         messages=[{"role": "system", "content": SYSTEM_PROMPT}, 
                                  {"role": "user", "content": f"CONVERSATION SO FAR:\n{conversation_context}\n\nGenerate your response as Ramesh."}],
                         temperature=0.7,
-                        max_tokens=150,
+                        max_tokens=80,
                     ),
                     timeout=7.0 # Reduced to 7s to stay under total 25s threshold
                 )
