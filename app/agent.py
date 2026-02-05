@@ -138,30 +138,35 @@ async def generate_response(
     # Try NVIDIA first (Primary)
     nvidia_client = get_nvidia_client()
     if nvidia_client:
-        try:
-            logger.info("Attempting Async NVIDIA response...")
-            # Use a concurrent timeout to ensure we don't hang the loop
-            import asyncio
-            response = await asyncio.wait_for(
-                nvidia_client.chat.completions.create(
-                    model="meta/llama-3.1-8b-instruct",
-                    messages=[{"role": "system", "content": SYSTEM_PROMPT}, 
-                             {"role": "user", "content": f"CONVERSATION SO FAR:\n{conversation_context}\n\nGenerate your response as Ramesh."}],
-                    temperature=0.7,
-                    max_tokens=150,
-                ),
-                timeout=12.0 # 12 second limit for primary
-            )
-            if response.choices[0].message.content:
-                return response.choices[0].message.content.strip()
-        except asyncio.TimeoutError:
-            logger.warning("NVIDIA Async timed out after 12 seconds.")
-        except Exception as nv_e:
-            import traceback
-            logger.warning(f"NVIDIA Async failed - Error Type: {type(nv_e).__name__}, Message: {str(nv_e)}")
-            # Log first few characters of key for verification (safe since it's in logs)
-            key_preview = os.getenv("NVIDIA_API_KEY", "MISSING")[:10]
-            logger.debug(f"NVIDIA API Key Preview: {key_preview}...")
+        # Try up to 2 times with different models if 503 occurs
+        models_to_try = ["meta/llama-3.1-8b-instruct", "meta/llama3-8b-instruct"]
+        for model_name in models_to_try:
+            try:
+                logger.info(f"Attempting Async NVIDIA response with {model_name}...")
+                import asyncio
+                response = await asyncio.wait_for(
+                    nvidia_client.chat.completions.create(
+                        model=model_name,
+                        messages=[{"role": "system", "content": SYSTEM_PROMPT}, 
+                                 {"role": "user", "content": f"CONVERSATION SO FAR:\n{conversation_context}\n\nGenerate your response as Ramesh."}],
+                        temperature=0.7,
+                        max_tokens=150,
+                    ),
+                    timeout=10.0 # 10 second limit per attempt
+                )
+                if response.choices[0].message.content:
+                    logger.info(f"NVIDIA success with {model_name}")
+                    return response.choices[0].message.content.strip()
+            except asyncio.TimeoutError:
+                logger.warning(f"NVIDIA {model_name} timed out.")
+                continue
+            except Exception as nv_e:
+                # If it's a 503, try the next model
+                if "503" in str(nv_e):
+                    logger.warning(f"NVIDIA {model_name} 503'd, trying next...")
+                    continue
+                logger.warning(f"NVIDIA Async failed - Error Type: {type(nv_e).__name__}, Message: {str(nv_e)}")
+                break # Non-503 error, move to Gemini
 
     # Fallback to Gemini
     client = get_gemini_client()
