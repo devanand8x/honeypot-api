@@ -56,8 +56,20 @@ def get_nvidia_client():
 
 
 def get_fallback_response(message: str) -> str:
-    """Fallback text"""
-    return "Sir please wait, let me ask my son. He handles all money matters."
+    """Randomized fallback responses to keep Ramesh in character when LLM fails"""
+    FALLBACKS = [
+        "Sir please wait, let me ask my son. He handles all money matters.",
+        "Bhaiya main thoda confuse ho gaya hoon. Ek baar phir se samjhayenge?",
+        "Sir mera phone hang ho raha hai. Please ek minute rukiye... network issue hai.",
+        "Oh ho! Account block ho jayega? Main abhi check karta hoon sir, tension ho rahi hai.",
+        "Sir OTP nahi mil raha, main network thik karke batata hoon. Please wait.",
+        "Sir which bank account? I have SBI and PNB both. Which one has problem?",
+        "Sir I am very scared. Please tell me step by step what I need to do.",
+        "Is this account safe sir? I am getting very worried about my money.",
+        "I am not good with these apps sir. Can you explain how to tell my son?",
+        "Sir the link you sent is not opening on my phone. Can you send again?"
+    ]
+    return random.choice(FALLBACKS)
 
 
 # System prompt for the agent persona
@@ -172,5 +184,5 @@ async def generate_response(
         except Exception as e:
             logger.error(f"Gemini Async fallback error: {e}")
 
-    return "Sir please wait, let me ask my son. He handles all money matters."
+    return get_fallback_response(current_message)
 
