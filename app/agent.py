@@ -152,7 +152,7 @@ async def generate_response(
                         temperature=0.7,
                         max_tokens=150,
                     ),
-                    timeout=10.0 # 10 second limit per attempt
+                    timeout=7.0 # Reduced to 7s to stay under total 25s threshold
                 )
                 if response.choices[0].message.content:
                     logger.info(f"NVIDIA success with {model_name}")
@@ -176,8 +176,7 @@ async def generate_response(
             import asyncio
             from functools import partial
             
-            # The current genai SDK might not be fully async-native in all environments, 
-            # so we run it in a thread to keep the loop free
+            # Use current event loop
             loop = asyncio.get_event_loop()
             full_prompt = f"{SYSTEM_PROMPT}\n\nCONVERSATION SO FAR:\n{conversation_context}\n\nGenerate your response as Ramesh."
             
@@ -187,7 +186,7 @@ async def generate_response(
                     model="gemini-2.0-flash",
                     contents=full_prompt
                 )),
-                timeout=10.0 # 10 second limit for secondary
+                timeout=7.0 # Reduced to 7s
             )
             
             if response and response.text:

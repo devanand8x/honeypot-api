@@ -277,6 +277,7 @@ async def analyze_message_root_flexible(
             curr_session.conversation_history.append({"sender": "agent", "text": agent_reply})
             session_manager.set_last_response(session_id_val, agent_reply)
             session_manager.set_scam_detected(session_id_val, True)
+            session_manager.save_to_disk() # Explicitly save the history update
             final_is_scam = True
         
         # 3.7 Build Response (Strict Order Required by GUVI Evaluator)
