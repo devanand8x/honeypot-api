@@ -87,14 +87,22 @@ class SessionManager:
                 logger.error(f"Failed to load sessions: {e}")
 
     def save_to_disk(self) -> None:
-        """Save sessions to JSON file with file locking"""
+        """Save sessions to JSON file with file locking - fail gracefully"""
         try:
-            with FileLock(LOCK_FILE):
-                data = {sid: session.to_dict() for sid, session in self._sessions.items()}
+            # Create a shallow copy to avoid dict size change during iteration
+            export_data = {}
+            for sid, session in list(self._sessions.items()):
+                try:
+                    export_data[sid] = session.to_dict()
+                except:
+                    continue
+                    
+            with FileLock(LOCK_FILE, timeout=1):
                 with open(DATA_FILE, "w") as f:
-                    json.dump(data, f, indent=2)
+                    json.dump(export_data, f, indent=2)
         except Exception as e:
-            logger.error(f"Failed to save sessions: {e}")
+            # Log but don't crash - memory is primary on Render
+            logger.warning(f"Persistence Note (Non-Critical): {e}")
 
     def get_or_create(self, session_id: str) -> Session:
         """Get existing session or create new one"""
