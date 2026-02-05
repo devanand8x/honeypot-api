@@ -2,7 +2,7 @@ name: Keep Alive Render
 
 on:
   schedule:
-    - cron: '* * * * *' # Every 1 minute
+    - cron: '*/5 * * * *' # Every 5 minutes (GitHub's minimum for reliability)
   workflow_dispatch: # Allows manual trigger
 
 jobs:

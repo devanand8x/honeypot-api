@@ -280,7 +280,7 @@ async def analyze_message_root_flexible(
             session_manager.save_to_disk() # Explicitly save the history update
             final_is_scam = True
         
-        # 3.7 Build Response (Strict Order Required by GUVI Evaluator)
+        # 3.7 Build Response (Strict Root Fields for GUVI Evaluator Compatibility)
         # Using OrderedDict to guarantee field order in JSON output
         response_dict = OrderedDict([
             ("status", "success"),
@@ -288,10 +288,9 @@ async def analyze_message_root_flexible(
             ("sessionId", session_id_val),
             ("scamDetected", final_is_scam),
             ("agentResponse", agent_reply),
-            ("engagementMetrics", {
-                "engagementDurationSeconds": session_manager.get_engagement_duration(session_id_val),
-                "totalMessagesExchanged": curr_session.message_count
-            }),
+            # Flattened metrics (moved from engagementMetrics to root)
+            ("totalMessagesExchanged", curr_session.message_count),
+            ("engagementDurationSeconds", session_manager.get_engagement_duration(session_id_val)),
             ("extractedIntelligence", intelligence_to_dict(intel)),
             ("agentNotes", notes)
         ])
