@@ -27,7 +27,7 @@ from app.models import (
 )
 from app.scam_detector import detect_scam, analyze_conversation_history
 from app.agent import generate_response
-from app.intelligence import extract_intelligence, merge_intelligence
+from app.intelligence import extract_intelligence, merge_intelligence, intelligence_to_dict
 from app.session import session_manager
 from app.callback import send_guvi_callback, should_send_callback
 
