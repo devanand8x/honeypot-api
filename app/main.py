@@ -211,151 +211,107 @@ async def analyze_message_root_flexible(
         logger.warning(f"AUTH FAILED for {client_host}: {auth_err.detail}")
         raise auth_err
     
+    # --- 3. Request Processing Core ---
+    # We use a single try-except for the entire logic
     try:
-        # Get raw body as text for debugging
+        # Get raw body for deep logging
         raw_body = await request.body()
         raw_text = raw_body.decode('utf-8', errors='ignore')
         logger.info(f"DIAGNOSTIC Raw body: {raw_text}")
         
-        # Try to parse JSON body
+        # Parse JSON
         try:
             body = await request.json()
-        except Exception as json_err:
-            logger.warning(f"JSON Parse fail: {json_err}. Using empty dict.")
+        except:
             body = {}
-        
         logger.info(f"DIAGNOSTIC Parsed body: {body}")
+
+        # 3.1 Identify Session
+        session_id_val = body.get("sessionId") or body.get("session_id") or f"auto-{int(time.time())}"
+        curr_session = session_manager.get_or_create(session_id_val)
+        session_manager.update_activity(session_id_val)
         
-        # Extract fields flexibly
-        session_id = body.get("sessionId") or body.get("session_id") or f"auto-{int(time.time())}"
-        
-        # Handle message - could be object or string or missing
+        # 3.2 Extract Message Text
         message_data = body.get("message", {})
         if isinstance(message_data, str):
-            message_text = message_data
+            msg_text = message_data
         elif isinstance(message_data, dict):
-            message_text = message_data.get("text", message_data.get("content", ""))
+            msg_text = message_data.get("text", message_data.get("content", ""))
         else:
-            message_text = ""
+            msg_text = body.get("text", body.get("content", "Test message"))
         
-        # If no message field, check for text/content directly in body
-        if not message_text:
-            message_text = body.get("text", body.get("content", ""))
-        
-        # Fallback if still empty
-        if not message_text and raw_text:
-            if not raw_text.strip().startswith('{'):
-                message_text = raw_text.strip()
-        
-        if not message_text:
-            message_text = "Test message"
-            
-        # Get conversation history
+        if not msg_text and not body:
+            msg_text = raw_text.strip() if raw_text else "Hello"
+
+        # 3.3 Message Counting (State Recovery)
         history = body.get("conversationHistory", body.get("conversation_history", []))
-        
-        # 2.5 Robust Message Count - Sync with history if session was lost/restarted
-        if len(history) + 1 > session.message_count:
-            session.message_count = len(history) + 1
+        if len(history) + 1 > curr_session.message_count:
+            curr_session.message_count = len(history) + 1
             session_manager.save_to_disk()
-        
-        # Detect scam
-        is_scam, confidence, keywords, notes = detect_scam(message_text)
-        history_score, history_keywords = analyze_conversation_history([
+
+        # 3.4 Scam Detection
+        is_scam, confidence, keywords, notes = detect_scam(msg_text)
+        h_score, h_keywords = analyze_conversation_history([
             {"sender": h.get("sender", "scammer") if isinstance(h, dict) else "scammer",
              "text": h.get("text", str(h)) if isinstance(h, dict) else str(h)}
             for h in history
         ] if history else [])
         
-        final_scam = is_scam or history_score > 0.3 or session.scam_detected
-        session_manager.set_scam_detected(session_id, final_scam)
+        final_is_scam = is_scam or h_score > 0.3 or curr_session.scam_detected
+        session_manager.set_scam_detected(session_id_val, final_is_scam)
         
-        # Extract intelligence from current message
-        intelligence = extract_intelligence(message_text, session.intelligence)
-        
-        # ALSO extract from history (Safety/Resiliency in case session state was lost)
+        # 3.5 Intelligence Extraction (Iterative)
+        intel = extract_intelligence(msg_text, curr_session.intelligence)
         if history:
             for h in history:
-                h_text = h.get("text", "") if isinstance(h, dict) else str(h)
-                if h.get("sender", "scammer") == "scammer" and h_text:
-                    intelligence = extract_intelligence(h_text, intelligence)
-                    
-        session_manager.update_intelligence(session_id, intelligence)
-        session_manager.update_notes(session_id, notes)
+                h_txt = h.get("text", "") if isinstance(h, dict) else str(h)
+                if h.get("sender", "scammer") == "scammer" and h_txt:
+                    intel = extract_intelligence(h_txt, intel)
         
-        # Generate response if scam
-        agent_response = None
-        if final_scam:
-            agent_response = generate_response(
-                current_message=message_text,
-                conversation_history=[{"sender": "scammer", "text": message_text}],
+        session_manager.update_intelligence(session_id_val, intel)
+        session_manager.update_notes(session_id_val, notes)
+
+        # 3.6 Agent Response
+        if final_is_scam:
+            agent_reply = generate_response(
+                current_message=msg_text,
+                conversation_history=[{"sender": "scammer", "text": msg_text}],
                 scam_type="general"
             )
-            session_manager.set_last_response(session_id, agent_response)
+            session_manager.set_last_response(session_id_val, agent_reply)
         else:
-            # Fallback for non-scam or testing
-            agent_response = f"Hello! How can I help you today? Reference: {session_id}"
-        
-        # Combine agent response into notes OR keep separate based on restored model
-        final_notes = notes
-        
-        # Build response dictionary to match Sections 8 & 12 + Email Req
-        response_body = {
+            agent_reply = f"Hello! How can I help you today? Ref: {session_id_val}"
+
+        # 3.7 Build Response
+        response_dict = {
             "status": "success",
-            "reply": agent_response,
-            "sessionId": session_id,
-            "scamDetected": final_scam,
-            "agentResponse": agent_response,
+            "reply": agent_reply,
+            "sessionId": session_id_val,
+            "scamDetected": final_is_scam,
+            "agentResponse": agent_reply,
             "engagementMetrics": {
-                "engagementDurationSeconds": session_manager.get_engagement_duration(session_id),
-                "totalMessagesExchanged": session.message_count
+                "engagementDurationSeconds": session_manager.get_engagement_duration(session_id_val),
+                "totalMessagesExchanged": curr_session.message_count
             },
-            "extractedIntelligence": {
-                "bankAccounts": intelligence.bankAccounts,
-                "upiIds": intelligence.upiIds,
-                "phishingLinks": intelligence.phishingLinks,
-                "phoneNumbers": intelligence.phoneNumbers,
-                "suspiciousKeywords": intelligence.suspiciousKeywords
-            },
-            "agentNotes": final_notes
+            "extractedIntelligence": intelligence_to_dict(intel),
+            "agentNotes": notes
         }
-        
-        # Trigger callback if appropriate
-        if should_send_callback(final_scam, session.message_count, session.callback_sent):
+
+        # 3.8 Trigger Callback
+        if should_send_callback(final_is_scam, curr_session.message_count, curr_session.callback_sent):
             background_tasks.add_task(
-                send_guvi_callback,
-                session_id,
-                final_scam,
-                session.message_count,
-                intelligence,
-                final_notes
+                send_guvi_callback, 
+                session_id_val, final_is_scam, curr_session.message_count, intel, notes
             )
-            session_manager.mark_callback_sent(session_id)
-            logger.info(f"Callback scheduled for session {session_id}")
-            
-        logger.info(f"Returning response: {response_body}")
-        
-        from fastapi.responses import JSONResponse
-        return JSONResponse(content=response_body)
-        
-    except Exception as e:
-        logger.error(f"Error processing request: {e}", exc_info=True)
-        # Check if it was a harmless test message to avoid flagging scam=True incorrectly
-        is_test = "Test Message" in str(request.query_params) or "Test Message" in str(getattr(request, '_cached_body', ''))
-        error_response = {
-            "status": "success",
-            "sessionId": "unknown",
-            "scamDetected": False if is_test else True,
-            "agentResponse": "Hello, this is Ramesh. How can I help you?",
-            "reply": "Hello, this is Ramesh. How can I help you?",
-            "engagementMetrics": {"engagementDurationSeconds": 0, "totalMessagesExchanged": 1},
-            "extractedIntelligence": {
-                "bankAccounts": [], "upiIds": [], "phishingLinks": [],
-                "phoneNumbers": [], "suspiciousKeywords": []
-            },
-            "agentNotes": "System processed request. Note: Global fallback used."
-        }
-        from fastapi.responses import JSONResponse
-        return JSONResponse(content=error_response)
+            session_manager.mark_callback_sent(session_id_val)
+
+        logger.info(f"Root Reply: {response_dict}")
+        return JSONResponse(content=response_dict)
+
+    except Exception as oops:
+        logger.error(f"Root Logic Exception: {oops}", exc_info=True)
+        # Fallback to the Global Exception Handler style for safety
+        return await global_exception_handler(request, oops)
 
 
 @app.post("/analyze")
