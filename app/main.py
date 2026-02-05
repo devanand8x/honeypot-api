@@ -161,6 +161,8 @@ async def root():
 async def global_exception_handler(request: Request, exc: Exception):
     """Log all unhandled exceptions and return a successful status to the tester"""
     logger.error(f"GLOBAL EXCEPTION: {exc}", exc_info=True)
+    err_msg = str(exc)
+    fallback_notes = f"System Error: {err_msg}. Note: Global recovery used."
     return JSONResponse(
         status_code=200,
         content={
@@ -174,7 +176,7 @@ async def global_exception_handler(request: Request, exc: Exception):
                 "bankAccounts": [], "upiIds": [], "phishingLinks": [],
                 "phoneNumbers": [], "suspiciousKeywords": []
             },
-            "agentNotes": "System processed request. Note: Global recovery used."
+            "agentNotes": fallback_notes
         }
     )
 
