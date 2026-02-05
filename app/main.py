@@ -293,7 +293,17 @@ async def analyze_message_root_flexible(
             )
             session_manager.mark_callback_sent(session_id_val)
 
-        return Response(content=json.dumps(response_dict, indent=4), media_type="application/json")
+        # 3.9 Build Headers
+        response_headers = {
+            "X-Honeypot-Version": "1.0.2-bulletproof",
+            "Access-Control-Expose-Headers": "X-Honeypot-Version"
+        }
+
+        return Response(
+            content=json.dumps(response_dict, indent=4), 
+            media_type="application/json",
+            headers=response_headers
+        )
 
     except Exception as oops:
         logger.error(f"Root Logic Exception: {oops}", exc_info=True)
