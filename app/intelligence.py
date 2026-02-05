@@ -130,7 +130,6 @@ def intelligence_to_dict(intel: ExtractedIntelligence) -> dict:
     return {
         "bankAccounts": intel.bankAccounts,
         "upiIds": intel.upiIds,
-        "upiIds": intel.upiIds,  # Strictly following PDF image typo/field name
         "phishingLinks": intel.phishingLinks,
         "phoneNumbers": intel.phoneNumbers,
         "suspiciousKeywords": intel.suspiciousKeywords
