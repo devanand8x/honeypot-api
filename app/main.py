@@ -259,7 +259,7 @@ async def analyze_message_root_flexible(
 
         # 3.6 Agent Response
         if final_is_scam:
-            agent_reply = generate_response(
+            agent_reply = await generate_response(
                 current_message=msg_text,
                 conversation_history=[{"sender": "scammer", "text": msg_text}],
                 scam_type="general"
